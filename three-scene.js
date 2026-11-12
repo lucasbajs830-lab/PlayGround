@@ -166,7 +166,7 @@ if (renderer) {
     }
   }
 
-  // First-person forearm, wand and focus crystal are attached to the moving camera.
+  // Keep the focus crystal as a first-person fallback, while the active camera follows a visible wizard.
   const hand = new THREE.Group(); camera.add(hand); hand.position.set(.43, -.45, -.7); hand.scale.setScalar(.66);
   const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(.105, .17, .46, 8), mat('#3c302b')); sleeve.rotation.z = -.62; sleeve.position.set(-.03, -.14, .02); hand.add(sleeve);
   const arm = new THREE.Mesh(new THREE.CylinderGeometry(.085, .1, .34, 8), mat('#c39879')); arm.rotation.z = -.58; arm.position.set(-.02, .09, -.04); hand.add(arm);
@@ -194,17 +194,26 @@ if (renderer) {
     const look = mapLooks[data.mapIndex || 0];
     const player = data.player;
     if (!player) return;
-    camera.position.set(player.x, 1.62 + (player.jump || 0), player.z);
-    camera.rotation.order = 'YXZ';
-    camera.rotation.y = -player.a - Math.PI / 2;
-    const flip = player.flipTime > 0 ? Math.max(0, Math.min(1, (0.72 - player.flipTime) / .72)) : 0;
-    // Pitch the first-person view through a full forward rotation for the second-jump somersault.
-    camera.rotation.x = flip * Math.PI * 2;
-    camera.rotation.z = flip ? Math.sin(flip * Math.PI) * .08 : 0;
+    // A close follow camera keeps the arena floor and the player's full character in view.
+    const forwardX = Math.cos(player.a), forwardZ = Math.sin(player.a);
+    const cameraDistance = 3.8;
+    camera.position.set(player.x - forwardX * cameraDistance, 2.65 + (player.jump || 0), player.z - forwardZ * cameraDistance);
+    camera.lookAt(player.x + forwardX * 2.8, 1.05 + (player.jump || 0), player.z + forwardZ * 2.8);
     const moving = Math.hypot(player.vx || 0, player.vz || 0);
+    hand.visible = false;
     hand.position.y = -.45 + Math.sin(data.elapsed * 9) * Math.min(.018, moving * .006) - Math.min(.08, (player.jump || 0) * .035);
     hand.rotation.z = -.08 + Math.sin(data.elapsed * 7) * .025;
     focusMat.color.set(data.classColor); focusMat.emissive.set(data.classColor);
+    const playerWizard = actors.get('player') || makeWizard('player', data.classIndex || 0, data.classColor || '#f49a63');
+    playerWizard.position.set(player.x, player.jump || 0, player.z);
+    playerWizard.rotation.y = -player.a - Math.PI / 2;
+    playerWizard.userData.robe.material.color.set(data.classColor || '#f49a63');
+    playerWizard.userData.robe.material.emissive.set(player.damage > 0 ? '#ffffff' : '#000000');
+    playerWizard.userData.robe.material.emissiveIntensity = player.damage > 0 ? .9 : 0;
+    playerWizard.userData.orb.material.color.set(data.classColor || '#f49a63');
+    playerWizard.userData.orb.material.emissive.set(data.classColor || '#f49a63');
+    playerWizard.userData.robe.rotation.z = Math.sin(data.elapsed * 8) * Math.min(.035, moving * .008);
+    playerWizard.scale.setScalar(player.flipTime > 0 ? 1 + Math.sin(data.elapsed * 22) * .06 : 1);
     handLight.color.set(data.classColor);
     const cast = data.effects?.some(effect => effect.type === 'cast');
     hand.scale.setScalar(cast ? .75 : .66);
