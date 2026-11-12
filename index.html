@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#101510" />
+  <link rel="icon" href="data:," />
+  <title>ARCANA — Battle Royale</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main id="game-shell">
+    <canvas id="game" aria-label="Arena mágica em primeira pessoa"></canvas>
+    <div class="vignette"></div>
+    <header class="topbar"><div class="brand"><span class="brand-mark">✦</span><span>ARCANA</span><small>ÚLTIMO CÍRCULO</small></div><div class="top-right"><span class="live-dot"></span><span id="aliveLabel">10 MAGOS RESTANTES</span><button id="soundBtn" class="icon-btn" aria-label="Alternar som">♫</button></div></header>
+    <section id="menu" class="screen">
+      <div class="menu-copy"><div class="eyebrow">BATTLE ROYALE DE MAGOS</div><h1>O último<br><em>feitiço.</em></h1><p>Entre na arena. Evolua sua magia.<br>Seja o último mago de pé.</p></div>
+      <div class="setup-panel">
+        <div class="section-label">ESCOLHA SUA ARENA <span>01 / 03</span></div>
+        <div class="map-list" id="mapList"></div>
+        <div class="section-label class-label">SEU ARQUÉTIPO <span>02 / 02</span></div>
+        <div class="class-list" id="classList"></div>
+        <button id="startBtn" class="primary-btn">ENTRAR NA ARENA <span>↗</span></button>
+        <div class="menu-foot"><span>10 MAGOS · 1 VENCEDOR</span><span>WASD / TOQUE PARA MOVER</span></div>
+      </div>
+      <div class="menu-note">FEITO PARA JOGAR NO CELULAR <span>✦</span></div>
+    </section>
+    <section id="hud" class="hidden">
+      <div class="hud-left"><div class="stat-box"><span class="stat-icon">♙</span><div><b id="kills">0</b><small>ELIMINAÇÕES</small></div></div><div class="stat-box"><span class="stat-icon gold">✦</span><div><b id="level">NÍVEL 1</b><small id="xpLabel">0 / 3 PARA EVOLUIR</small></div></div><div class="stat-box alive-stat"><span class="stat-icon">◉</span><div><b id="aliveHud">10</b><small>RESTANTES</small></div></div></div>
+      <div class="hud-center"><div class="storm-label"><span class="storm-symbol">◉</span> CÍRCULO ARCANO <b id="stormTimer">90</b></div><div class="storm-track"><i id="stormBar"></i></div></div>
+      <div class="hud-right"><div class="health-wrap"><span>VITALIDADE</span><div class="health-track"><i id="healthBar"></i></div><b id="healthText">100</b></div><button id="pauseBtn" class="icon-btn">Ⅱ</button></div>
+      <div class="spell-card"><span id="spellIcon">✹</span><div><small>FEITIÇO PRINCIPAL</small><b id="spellName">BRASA ARCANA</b></div><div class="spell-cooldown" id="spellCooldown">PRONTO</div></div>
+      <div id="feed" class="feed"></div>
+      <div class="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
+      <div id="damageFlash"></div>
+      <div id="touchControls" class="touch-controls">
+        <div id="joystick" class="joystick"><div class="joy-ring"></div><div id="joyKnob" class="joy-knob"></div><small>MOVER</small></div>
+        <div class="touch-actions"><button id="jumpBtn" class="action-btn jump-btn"><span>↑</span><small>PULAR</small></button><button id="castBtn" class="action-btn cast-btn"><span id="castGlyph">✹</span><small>LANÇAR</small></button></div>
+      </div>
+      <div class="desktop-help">W A S D MOVER <span>·</span> MOUSE MIRAR <span>·</span> CLIQUE LANÇAR <span>·</span> ESPAÇO PULAR (2×)</div>
+    </section>
+    <section id="overlay" class="screen hidden"><div class="result-card"><div class="eyebrow" id="resultEyebrow">FIM DE JOGO</div><h2 id="resultTitle">VITÓRIA</h2><p id="resultDesc">A arena agora pertence a você.</p><div class="result-stats"><div><b id="resultKills">0</b><small>ELIMINAÇÕES</small></div><div><b id="resultLevel">1</b><small>NÍVEL MÁXIMO</small></div><div><b id="resultTime">0:00</b><small>TEMPO DE SOBREVIVÊNCIA</small></div></div><button id="againBtn" class="primary-btn">JOGAR NOVAMENTE <span>↗</span></button><button id="menuBtn" class="text-btn">VOLTAR À SELEÇÃO</button></div></section>
+    <div id="toast" class="toast"></div>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
