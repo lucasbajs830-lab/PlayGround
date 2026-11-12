@@ -31,14 +31,15 @@
       <div class="hud-center"><div class="storm-label"><span class="storm-symbol">◉</span> CÍRCULO ARCANO <b id="stormTimer">90</b></div><div class="storm-track"><i id="stormBar"></i></div></div>
       <div class="hud-right"><div class="health-wrap"><span>VITALIDADE</span><div class="health-track"><i id="healthBar"></i></div><b id="healthText">100</b></div><button id="pauseBtn" class="icon-btn">Ⅱ</button></div>
       <div class="spell-card"><span id="spellIcon">✹</span><div><small>FEITIÇO PRINCIPAL</small><b id="spellName">BRASA ARCANA</b></div><div class="spell-cooldown" id="spellCooldown">PRONTO</div></div>
+      <div id="dashStatus" class="dash-status">SHIFT · ESQUIVA PRONTA</div>
       <div id="feed" class="feed"></div>
       <div class="crosshair"><i></i><i></i><i></i><i></i><b></b></div>
       <div id="damageFlash"></div>
       <div id="touchControls" class="touch-controls">
         <div id="joystick" class="joystick"><div class="joy-ring"></div><div id="joyKnob" class="joy-knob"></div><small>MOVER</small></div>
-        <div class="touch-actions"><button id="jumpBtn" class="action-btn jump-btn"><span>↑</span><small>PULAR</small></button><button id="castBtn" class="action-btn cast-btn"><span id="castGlyph">✹</span><small>LANÇAR</small></button></div>
+        <div class="touch-actions"><button id="dashBtn" class="action-btn dash-btn"><span>↗</span><small id="dashLabel">ESQUIVA</small></button><button id="jumpBtn" class="action-btn jump-btn"><span>↑</span><small>PULAR</small></button><button id="castBtn" class="action-btn cast-btn"><span id="castGlyph">✹</span><small>LANÇAR</small></button></div>
       </div>
-      <div class="desktop-help">W A S D MOVER <span>·</span> MOUSE MIRAR <span>·</span> CLIQUE LANÇAR <span>·</span> ESPAÇO PULAR (2×)</div>
+      <div class="desktop-help">W A S D MOVER <span>·</span> MOUSE MIRAR <span>·</span> CLIQUE LANÇAR <span>·</span> ESPAÇO PULAR (2×) <span>·</span> SHIFT ESQUIVAR</div>
     </section>
     <section id="overlay" class="screen hidden"><div class="result-card"><div class="eyebrow" id="resultEyebrow">FIM DE JOGO</div><h2 id="resultTitle">VITÓRIA</h2><p id="resultDesc">A arena agora pertence a você.</p><div class="result-stats"><div><b id="resultKills">0</b><small>ELIMINAÇÕES</small></div><div><b id="resultLevel">1</b><small>NÍVEL MÁXIMO</small></div><div><b id="resultTime">0:00</b><small>TEMPO DE SOBREVIVÊNCIA</small></div></div><button id="againBtn" class="primary-btn">JOGAR NOVAMENTE <span>↗</span></button><button id="menuBtn" class="text-btn">VOLTAR À SELEÇÃO</button></div></section>
     <div id="toast" class="toast"></div>

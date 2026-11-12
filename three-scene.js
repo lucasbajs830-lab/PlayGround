@@ -53,6 +53,31 @@ if (renderer) {
   function mat(color, roughness = 0.92, extra = {}) {
     return new THREE.MeshStandardMaterial({ color, roughness, ...extra });
   }
+  function makeSurfaceTexture(kind, seed) {
+    const size = 128, canvas = document.createElement('canvas');
+    canvas.width = canvas.height = size;
+    const ctx = canvas.getContext('2d'), image = ctx.createImageData(size, size);
+    for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+      const broad = Math.sin((x + seed) * Math.PI / 32) * Math.cos((y - seed) * Math.PI / 32);
+      const grain = Math.sin((x * 7 + y * 13 + seed) * Math.PI / 16) * Math.cos((x * 11 - y * 5) * Math.PI / 16);
+      const fleck = Math.sin((x * 23 + y * 17 + seed) * Math.PI / 32);
+      const value = Math.max(150, Math.min(255, Math.round(224 + broad * (kind === 'stone' ? 16 : 10) + grain * 11 + fleck * 5)));
+      const i = (y * size + x) * 4;
+      image.data[i] = image.data[i + 1] = image.data[i + 2] = value;
+      image.data[i + 3] = 255;
+    }
+    ctx.putImageData(image, 0, 0);
+    const color = new THREE.CanvasTexture(canvas), bump = new THREE.CanvasTexture(canvas);
+    color.colorSpace = THREE.SRGBColorSpace;
+    for (const texture of [color, bump]) {
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.anisotropy = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+      texture.generateMipmaps = true;
+    }
+    return { color, bump };
+  }
+  const stoneTexture = makeSurfaceTexture('stone', 17);
+  const earthTexture = makeSurfaceTexture('earth', 41);
   function box(parent, x, y, z, sx, sy, sz, material, shadow = true) {
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(sx, sy, sz), material);
     mesh.position.set(x, y, z); mesh.castShadow = shadow; mesh.receiveShadow = true; parent.add(mesh);
@@ -66,8 +91,12 @@ if (renderer) {
     actors.clear(); spellEffects.length = 0; effectSources = new WeakSet();
     const look = mapLooks[data.mapIndex || 0];
     scene.background.set(look.sky); scene.fog.color.set(look.fog);
-    const floorMat = mat(look.floor, 1), floor2Mat = mat(look.floor2, 1);
-    const stoneMat = mat(look.stone), darkMat = mat(look.dark), trimMat = mat(look.accent, .72, { emissive: look.accent, emissiveIntensity: .12 });
+    const floorMat = mat(look.floor, 1, { map: earthTexture.color, bumpMap: earthTexture.bump, bumpScale: .055 });
+    earthTexture.color.repeat.set(13, 13); earthTexture.bump.repeat.set(13, 13);
+    const floor2Mat = mat(look.floor2, 1);
+    const stoneMat = mat(look.stone, .94, { map: stoneTexture.color, bumpMap: stoneTexture.bump, bumpScale: .075 });
+    const darkMat = mat(look.dark, .96, { map: stoneTexture.color, bumpMap: stoneTexture.bump, bumpScale: .06 });
+    const trimMat = mat(look.accent, .72, { emissive: look.accent, emissiveIntensity: .12 });
     const floor = new THREE.Mesh(new THREE.PlaneGeometry(data.world[0].length, data.world.length), floorMat);
     floor.rotation.x = -Math.PI / 2; floor.position.set(data.world[0].length / 2, -.06, data.world.length / 2); floor.receiveShadow = true; arena.add(floor);
     // Broad, subtle ground tiles give the arena scale and make movement legible in 3D.
@@ -122,7 +151,9 @@ if (renderer) {
     const orb = new THREE.Mesh(orbGeometry, orbMat); orb.position.set(.36, 1.08, -.03); group.add(orb);
     const shadow = new THREE.Mesh(new THREE.CircleGeometry(.38, 16), new THREE.MeshBasicMaterial({ color: '#080c09', transparent: true, opacity: .35, depthWrite: false }));
     shadow.rotation.x = -Math.PI / 2; shadow.position.y = .015; group.add(shadow);
-    group.userData = { id, robe, orb, shadow, baseY: 0 }; arena.add(group); actors.set(id, group); return group;
+    const iceRing = new THREE.Mesh(new THREE.TorusGeometry(.48, .025, 5, 24), new THREE.MeshBasicMaterial({ color: '#a7efff', transparent: true, opacity: .78, depthWrite: false }));
+    iceRing.rotation.x = Math.PI / 2; iceRing.position.y = .3; iceRing.visible = false; group.add(iceRing);
+    group.userData = { id, robe, orb, shadow, iceRing, baseY: 0 }; arena.add(group); actors.set(id, group); return group;
   }
   function buildEffects(data) {
     for (const effect of data.effects || []) {
@@ -187,8 +218,12 @@ if (renderer) {
       const id = `bot-${enemy.id}`; aliveIds.add(id);
       const wizard = actors.get(id) || makeWizard(id, enemy.cls, enemy.color);
       wizard.position.set(enemy.x, enemy.jump || 0, enemy.z); wizard.rotation.y = -enemy.a - Math.PI / 2;
-      wizard.userData.robe.material.emissive.set(enemy.flash > 0 ? '#ffffff' : '#000000');
-      wizard.userData.orb.material.emissiveIntensity = enemy.freeze > 0 ? 4 : 2.5;
+      const frozen = enemy.freeze > 0;
+      wizard.userData.robe.material.emissive.set(frozen ? '#80dff5' : enemy.flash > 0 ? '#ffffff' : '#000000');
+      wizard.userData.robe.material.emissiveIntensity = frozen ? .72 : enemy.flash > 0 ? .9 : 0;
+      wizard.userData.orb.material.emissiveIntensity = frozen ? 4 : 2.5;
+      wizard.userData.iceRing.visible = frozen;
+      wizard.userData.iceRing.rotation.z = data.elapsed * 1.8;
       wizard.scale.setScalar(enemy.hp < 35 ? .92 : 1);
     }
     for (const [id, wizard] of actors) if (id !== 'player' && !aliveIds.has(id)) { arena.remove(wizard); actors.delete(id); }
