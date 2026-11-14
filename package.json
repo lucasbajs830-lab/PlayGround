@@ -1,0 +1,18 @@
+{
+  "name": "drag-brasil",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Drag Brasil — jogo de arrancada 3D no navegador (Three.js)",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0 --port 3002",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0 --port 3002"
+  },
+  "dependencies": {
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "vite": "^7.3.6"
+  }
+}
