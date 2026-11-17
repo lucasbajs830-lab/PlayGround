@@ -182,3 +182,223 @@ export function crowdTexture() {
     ctx.globalAlpha = 1;
   }, { repeat: [6, 1] });
 }
+
+/* ---------- interiores ---------- */
+
+/** Fibra de carbono trançada (2x2), usada no painel e no console. */
+export function carbonTexture() {
+  return canvasTex("carbon", 128, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#0b0b0f";
+    ctx.fillRect(0, 0, w, h);
+    const s = 8;
+    for (let y = 0; y < h; y += s) {
+      for (let x = 0; x < w; x += s) {
+        const on = ((x / s + y / s) & 1) === 0;
+        const g = ctx.createLinearGradient(x, y, x + s, y + s);
+        if (on) {
+          g.addColorStop(0, "#22222a");
+          g.addColorStop(0.55, "#15151b");
+          g.addColorStop(1, "#0d0d12");
+        } else {
+          g.addColorStop(0, "#101015");
+          g.addColorStop(0.55, "#1b1b23");
+          g.addColorStop(1, "#0a0a0e");
+        }
+        ctx.fillStyle = g;
+        ctx.fillRect(x, y, s, s);
+        ctx.fillStyle = on ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.22)";
+        ctx.fillRect(x, y, s, 1);
+      }
+    }
+  }, { repeat: [3, 3] });
+}
+
+/** Suede/alcântara: base fosca com grão fino, sem brilho. */
+export function suedeTexture(key, base = [24, 22, 26], spread = 13) {
+  return canvasTex(`suede:${key}`, 128, 128, (ctx, w, h) => {
+    ctx.fillStyle = `rgb(${base[0]},${base[1]},${base[2]})`;
+    ctx.fillRect(0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
+    const d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (Math.random() - 0.5) * spread * 2;
+      d[i] = Math.max(0, Math.min(255, d[i] + n + 1));
+      d[i + 1] = Math.max(0, Math.min(255, d[i + 1] + n));
+      d[i + 2] = Math.max(0, Math.min(255, d[i + 2] + n + 2));
+    }
+    ctx.putImageData(img, 0, 0);
+    for (let i = 0; i < 120; i++) {
+      ctx.fillStyle = `rgba(255,255,255,${0.01 + Math.random() * 0.02})`;
+      ctx.beginPath();
+      ctx.arc(Math.random() * w, Math.random() * h, 1 + Math.random() * 3, 0, 7);
+      ctx.fill();
+    }
+  }, { repeat: [2, 2] });
+}
+
+/** Face de mostrador: marcações, números e zona vermelha. */
+export function gaugeTexture(kind = "tach") {
+  const tach = kind === "tach";
+  const steps = tach ? 9 : 6;
+  const labels = tach
+    ? Array.from({ length: steps + 1 }, (_, i) => String(i))
+    : Array.from({ length: steps + 1 }, (_, i) => String(i * 40));
+  return canvasTex(`gauge:${kind}`, 256, 256, (ctx, w, h) => {
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = w / 2 - 5;
+    ctx.clearRect(0, 0, w, h);
+    const face = ctx.createRadialGradient(cx, cy - 26, 8, cx, cy, R);
+    face.addColorStop(0, "#1c2030");
+    face.addColorStop(0.7, "#0a0b11");
+    face.addColorStop(1, "#05060a");
+    ctx.fillStyle = face;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+    ctx.fill();
+
+    const a0 = 2.25 + Math.PI / 2;
+    const a1 = -2.25 + Math.PI / 2;
+    const sweep = a0 - a1;
+
+    // zona vermelha
+    if (tach) {
+      const rs = a0 - sweep * 0.74;
+      ctx.strokeStyle = "#ff2a18";
+      ctx.lineWidth = 11;
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - 15, -rs, -a1, false);
+      ctx.stroke();
+    }
+    // arco externo
+    ctx.strokeStyle = "rgba(190,196,210,0.55)";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(cx, cy, R - 4, -a0, -a1, false);
+    ctx.stroke();
+
+    for (let i = 0; i <= steps * 5; i++) {
+      const t = i / (steps * 5);
+      const a = a0 - sweep * t;
+      const major = i % 5 === 0;
+      const r0 = R - (major ? 30 : 21);
+      const r1 = R - 12;
+      ctx.strokeStyle = major ? "#eef1f7" : "rgba(200,205,220,0.45)";
+      ctx.lineWidth = major ? 4 : 2;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * r0, cy - Math.sin(a) * r0);
+      ctx.lineTo(cx + Math.cos(a) * r1, cy - Math.sin(a) * r1);
+      ctx.stroke();
+
+      if (major) {
+        const num = labels[Math.round(t * steps)];
+        const nr = R - 48;
+        ctx.fillStyle = t > 0.74 && tach ? "#ff6a4d" : "#f2f4fa";
+        ctx.font = "italic 900 30px Arial, Helvetica, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(num, cx + Math.cos(a) * nr, cy - Math.sin(a) * nr);
+      }
+    }
+
+    ctx.fillStyle = "rgba(220,225,235,0.55)";
+    ctx.font = "700 15px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(tach ? "RPM x1000" : "KM/H", cx, cy + R * 0.52);
+  });
+}
+
+/** Emblema redondo "DB" para o cubo do volante e cintos. */
+export function badgeTexture(text = "DB") {
+  return canvasTex(`badge:${text}`, 128, 128, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#0b0b10";
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, w / 2 - 2, 0, 7);
+    ctx.fill();
+    ctx.strokeStyle = "#ffd319";
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.arc(w / 2, h / 2, w / 2 - 7, 0, 7);
+    ctx.stroke();
+    ctx.fillStyle = "#ffd319";
+    ctx.font = "italic 900 54px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, w / 2, h / 2 + 3);
+  });
+}
+
+/** Rede de janela: grade com fundo transparente. */
+export function windowNetTexture() {
+  return canvasTex("windownet", 256, 256, (ctx, w, h) => {
+    ctx.clearRect(0, 0, w, h);
+    ctx.strokeStyle = "#33333c";
+    ctx.lineWidth = 4;
+    for (let x = 20; x < w; x += 38) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 20; y < h; y += 38) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    ctx.lineWidth = 12;
+    ctx.strokeRect(6, 6, w - 12, h - 12);
+    ctx.fillStyle = "#b3121f";
+    ctx.fillRect(0, 0, w, 7);
+  });
+}
+
+/** Tapete com logo, usado no assoalho. */
+export function matTexture() {
+  return canvasTex("floormat", 256, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#0a0a0d";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(255,211,25,0.5)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(10, 10, w - 20, h - 20);
+    ctx.fillStyle = "rgba(255,211,25,0.75)";
+    ctx.font = "italic 900 40px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DRAG BRASIL", w / 2, h / 2 + 2);
+  }, { repeat: [1, 1] });
+}
+
+/** Tela do painel central (telemetria estilizada). */
+export function dashScreenTexture() {
+  return canvasTex("dashscreen", 256, 128, (ctx, w, h) => {
+    ctx.fillStyle = "#04121a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = "rgba(47,216,255,0.18)";
+    ctx.lineWidth = 1;
+    for (let x = 0; x < w; x += 16) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, h);
+      ctx.stroke();
+    }
+    for (let y = 0; y < h; y += 16) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#2fd8ff";
+    ctx.font = "italic 900 34px Arial, Helvetica, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillText("DRAG", 16, 36);
+    ctx.fillStyle = "#ffd319";
+    ctx.fillText("BRASIL", 16, 72);
+    ctx.fillStyle = "#2fd8ff";
+    ctx.fillRect(16, 98, 150, 8);
+    ctx.fillStyle = "rgba(47,216,255,0.35)";
+    ctx.fillRect(170, 98, 66, 8);
+  });
+}

@@ -391,7 +391,7 @@ export class Game {
     // cockpit
     const accel = sim.accel;
     const shake = Math.min(0.02, sim.speed * 0.00007 + sim.wheelspin * 0.01);
-    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.235, -0.2));
+    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.23, -0.27));
     base.x += Math.sin(t * 53) * shake;
     base.y += Math.sin(t * 61 + 1.3) * shake * 0.7;
     base.z += Math.cos(t * 47) * shake * 0.5;
@@ -848,6 +848,15 @@ export class Game {
       if (p.steeringWheel) p.steeringWheel.rotation.z = this.steer * 1.0;
       if (p.needles.tach) p.needles.tach.rotation.z = 2.25 - sim.rpmNorm * 4.5;
       if (p.needles.speed) p.needles.speed.rotation.z = 2.25 - Math.min(1, sim.speedKmh / 240) * 4.5;
+      if (p.shiftLights?.length) {
+        const rpm = sim.rpmNorm;
+        const lit = this.mode === "race" ? Math.floor(rpm * 6.4) : 0;
+        const blink = Math.floor(this.time * 14) % 2 === 0;
+        p.shiftLights.forEach((led, i) => {
+          const on = i < lit || (rpm > 0.98 && blink);
+          led.material.color.setHex(on ? led.userData.on : 0x17171d);
+        });
+      }
 
       // fumaça de pneu
       if (sim.wheelspin > 0.38 && Math.random() < sim.wheelspin) {
