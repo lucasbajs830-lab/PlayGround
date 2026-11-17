@@ -307,9 +307,12 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     deckStripe.position.set(sx, 1.06, -1.62);
   }
 
-  // cowl escuro na base do para-brisa
-  const cowl = mesh(new THREE.BoxGeometry(1.62, 0.035, 0.22), new THREE.MeshStandardMaterial({ color: 0x08080b, roughness: 0.85 }), body, false);
-  cowl.position.set(0, 1.09, 0.46);
+  // cowl escuro na base do para-brisa, aberto no centro para não tapar a tela
+  const cowlMat = new THREE.MeshStandardMaterial({ color: 0x08080b, roughness: 0.85 });
+  for (const sx of [-1, 1]) {
+    const cowl = mesh(new THREE.BoxGeometry(0.55, 0.035, 0.22), cowlMat, body, false);
+    cowl.position.set(sx * 0.535, 1.09, 0.46);
+  }
 
   // sombra de contato
   const shadow = new THREE.Mesh(
@@ -324,6 +327,8 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
 
   // ---- interior ----
   let steeringWheel = null;
+  let dashScreen = null;
+  let mirrorGlass = null;
   const needles = { tach: null, speed: null };
   const shiftLights = [];
   if (interior) {
@@ -395,22 +400,25 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     }
 
     // central multimídia montada entre o painel e o console
-    const centerPanel = mesh(new RoundedBoxGeometry(0.36, 0.15, 0.06, 2, 0.02), carbon, body, false);
-    centerPanel.position.set(0, 1.04, 0.37);
-    centerPanel.rotation.x = 0.16;
-    const screen = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.27, 0.098),
+    const centerPanel = mesh(new RoundedBoxGeometry(0.38, 0.19, 0.06, 2, 0.02), carbon, body, false);
+    centerPanel.position.set(0, 1.075, 0.4);
+    centerPanel.rotation.set(0.34, 0, 0);
+    const screenHood = mesh(new RoundedBoxGeometry(0.4, 0.03, 0.11, 2, 0.012), suede, body, false);
+    screenHood.position.set(0, 1.148, 0.373);
+    screenHood.rotation.x = 0.34;
+    dashScreen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.31, 0.113),
       new THREE.MeshBasicMaterial({ map: dashScreenTexture(), color: 0xb4c0c9 })
     );
-    screen.position.set(0, 1.043, 0.338);
-    screen.rotation.set(0.16, Math.PI, 0);
-    body.add(screen);
+    dashScreen.position.set(0, 1.081, 0.352);
+    dashScreen.rotation.set(0.34, Math.PI, 0);
+    body.add(dashScreen);
     const screenGlow = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.24, 0.014),
-      new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.7 })
+      new THREE.PlaneGeometry(0.26, 0.012),
+      new THREE.MeshBasicMaterial({ color: 0x2fd8ff, transparent: true, opacity: 0.55 })
     );
-    screenGlow.position.set(0, 1.017, 0.342);
-    screenGlow.rotation.set(0.16, Math.PI, 0);
+    screenGlow.position.set(0, 1.019, 0.36);
+    screenGlow.rotation.set(0.34, Math.PI, 0);
     body.add(screenGlow);
     for (const x of [-0.23, 0.23]) {
       const knob = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.02, 0.024, 12), brushed);
@@ -713,7 +721,7 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     const mirror = mesh(new RoundedBoxGeometry(0.2, 0.055, 0.04, 2, 0.015), padMat, body, false);
     mirror.position.set(0, 1.402, 0.375);
     mirror.rotation.x = -0.2;
-    const mirrorGlass = new THREE.Mesh(
+    mirrorGlass = new THREE.Mesh(
       new THREE.PlaneGeometry(0.17, 0.038),
       new THREE.MeshStandardMaterial({ color: 0x27384a, roughness: 0.08, metalness: 1, envMapIntensity: 1.6 })
     );
@@ -760,6 +768,8 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     steeringWheel,
     needles,
     shiftLights,
+    dashScreen,
+    mirrorGlass,
     exhaustTips,
     setPaint,
   };

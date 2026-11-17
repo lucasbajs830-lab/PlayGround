@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createCarModel } from "./three/carModel.js";
+import { TelemetryScreen, MirrorFeed } from "./three/liveScreens.js";
 import { buildTrack } from "./three/track.js";
 import { Effects } from "./three/effects.js";
 import { DragSim, clamp, QUARTER_MILE } from "./physics.js";
@@ -176,6 +177,12 @@ export class Game {
       this.playerModel = null;
     }
     this.playerModel = createCarModel({ paint, interior: true });
+    if (!this.telemetry) this.telemetry = new TelemetryScreen();
+    if (!this.mirrorFeed) this.mirrorFeed = new MirrorFeed(this.renderer, this.scene);
+    if (this.playerModel.dashScreen) this.playerModel.dashScreen.material = this.telemetry.material;
+    if (this.playerModel.mirrorGlass) this.playerModel.mirrorGlass.material = this.mirrorFeed.material;
+    this.screenClock = 0;
+    this.mirrorAcc = 0;
     this.playerGroup.add(this.playerModel.root);
     this.playerSpec = buildSpec(car, save.upgrades[car.id] || {});
     this.playerSim = new DragSim(this.playerSpec);
@@ -834,6 +841,41 @@ export class Game {
     this.ui.showFoul(false);
   }
 
+  // ---------- telas vivas (feed de textura) ----------
+  updateLiveScreens(rdt) {
+    const sim = this.playerSim;
+    if (!sim || !this.telemetry) return;
+
+    const interval = this.mode === "race" ? 1 / 12 : 1 / 6;
+    if (this.time - (this.screenClock || 0) >= interval) {
+      this.screenClock = this.time;
+      const rsim = this.rivalSim;
+      this.telemetry.draw({
+        mode: this.mode,
+        time: this.time,
+        speed: sim.speedKmh,
+        rpm: sim.rpmNorm,
+        gear: sim.gear,
+        distance: sim.distance,
+        finish: FINISH,
+        gap: rsim ? rsim.distance - sim.distance : null,
+        et: (this.mode === "race" || this.mode === "result") && this.playerFinished ? this.playerET : null,
+        phase: this.mode === "race" || this.mode === "result"
+          ? this.playerFinished ? "FIM" : this.greenReached ? "CORRIDA" : "PREPARE"
+          : undefined,
+      });
+    }
+
+    if (this.mirrorFeed) {
+      const cockpit = this.mode === "race" && this.cameraMode === "cockpit";
+      this.mirrorAcc = (this.mirrorAcc || 0) + rdt;
+      if (this.mirrorAcc >= (cockpit ? 1 / 15 : 1 / 6)) {
+        this.mirrorAcc = 0;
+        this.mirrorFeed.update(this.playerGroup);
+      }
+    }
+  }
+
   // ---------- loop ----------
   updateCarVisuals(rdt) {
     const p = this.playerModel;
@@ -989,6 +1031,7 @@ export class Game {
     this.audio.update(audioState);
 
     this.renderer.render(this.scene, this.camera);
+    this.updateLiveScreens(rdt);
 
     // perf simples
     this.frameTimes.push(rdt);
