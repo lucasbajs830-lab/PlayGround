@@ -55,6 +55,34 @@ function mesh(geo, mat, parent, cast = true) {
   return m;
 }
 
+// ---------- IK simples de dois ossos para os braços do piloto ----------
+const LIMB_UP = new THREE.Vector3(0, 1, 0);
+
+function orientLimb(m, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+  const len = Math.hypot(dx, dy, dz);
+  if (len < 1e-5) return;
+  m.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
+  m.quaternion.setFromUnitVectors(LIMB_UP, new THREE.Vector3(dx / len, dy / len, dz / len));
+  m.scale.y = len / (m.userData.baseLen || 1);
+}
+
+function solveElbow(shoulder, target, l1, l2, pole, out) {
+  const dx = target.x - shoulder.x, dy = target.y - shoulder.y, dz = target.z - shoulder.z;
+  let dist = Math.hypot(dx, dy, dz);
+  dist = Math.min(Math.max(dist, 0.001), l1 + l2 - 0.002);
+  const ux = dx / dist, uy = dy / dist, uz = dz / dist;
+  const a = (l1 * l1 - l2 * l2 + dist * dist) / (2 * dist);
+  const h = Math.sqrt(Math.max(0, l1 * l1 - a * a));
+  let px = pole.x - ux * (pole.x * ux + pole.y * uy + pole.z * uz);
+  let py = pole.y - uy * (pole.x * ux + pole.y * uy + pole.z * uz);
+  let pz = pole.z - uz * (pole.x * ux + pole.y * uy + pole.z * uz);
+  const pl = Math.hypot(px, py, pz) || 1;
+  px /= pl; py /= pl; pz /= pl;
+  out.set(shoulder.x + ux * a + px * h, shoulder.y + uy * a + py * h, shoulder.z + uz * a + pz * h);
+  return out;
+}
+
 function wheel(x, z, side, front) {
   const g = new THREE.Group();
   g.position.set(x, 0.345, z);
@@ -111,7 +139,7 @@ function wheel(x, z, side, front) {
 /**
  * Constrói um carro low-poly estilizado. Frente = +Z, largura = X.
  */
-export function createCarModel({ paint = "#ff5a12", interior = false, plate = "DB" } = {}) {
+export function createCarModel({ paint = "#ff5a12", interior = false, plate = "DB", kit = "muscle" } = {}) {
   const root = new THREE.Group();
   const body = new THREE.Group();
   root.add(body);
@@ -200,12 +228,47 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
   const scoopMouth = mesh(new THREE.BoxGeometry(0.4, 0.05, 0.03), new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.8 }), body, false);
   scoopMouth.position.set(0, 1.08, 1.5);
 
+  // kits inspirados no pack de ruas
+  if (kit === "hotrod") {
+    // blower gigante saindo do capô
+    const blower = mesh(new RoundedBoxGeometry(0.46, 0.24, 0.5, 3, 0.05), mats.chrome, body);
+    blower.position.set(0, 1.27, 1.24);
+    const intake = mesh(new RoundedBoxGeometry(0.56, 0.1, 0.56, 2, 0.03), accent, body);
+    intake.position.set(0, 1.4, 1.24);
+    const mouth = mesh(new THREE.BoxGeometry(0.42, 0.08, 0.04), new THREE.MeshStandardMaterial({ color: 0x050508, roughness: 0.7 }), body, false);
+    mouth.position.set(0, 1.4, 1.52);
+    const belt = mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.06, 12), mats.chrome, body, false);
+    belt.rotation.z = Math.PI / 2;
+    belt.position.set(0, 1.2, 1.0);
+    scoop.visible = false;
+    scoopMouth.visible = false;
+  } else if (kit === "gt") {
+    scoop.scale.set(1.15, 0.8, 1.15);
+    scoopMouth.scale.set(1.2, 1, 1);
+  }
+
+  if (kit === "gt" || kit === "street" || kit === "oval") {
+    // para-lamas largos
+    for (const [sx, z] of [[-1, 1.43], [1, 1.43], [-1, -1.45], [1, -1.45]]) {
+      const flare = mesh(new RoundedBoxGeometry(0.26, 0.13, 0.95, 2, 0.05), paintMat, body);
+      flare.position.set(sx * 0.93, 0.82, z);
+      flare.rotation.z = sx * -0.12;
+    }
+  }
+
   // aerofólio
-  const wing = mesh(new RoundedBoxGeometry(1.62, 0.055, 0.34, 2, 0.02), accent, body);
-  wing.position.set(0, 1.13, -2.0);
-  for (const sx of [-1, 1]) {
-    const strut = mesh(new THREE.BoxGeometry(0.05, 0.18, 0.14), accent, body);
-    strut.position.set(sx * 0.56, 1.03, -2.0);
+  if (kit !== "oval") {
+    const wing = mesh(new RoundedBoxGeometry(1.62, 0.055, 0.34, 2, 0.02), accent, body);
+    wing.position.set(0, kit === "gt" ? 1.22 : 1.13, -2.0);
+    if (kit === "gt") wing.scale.set(1.08, 1.3, 1);
+    for (const sx of [-1, 1]) {
+      const strut = mesh(new THREE.BoxGeometry(0.05, 0.18, 0.14), accent, body);
+      strut.position.set(sx * 0.56, kit === "gt" ? 1.12 : 1.03, -2.0);
+    }
+  } else {
+    // lip pequeno no porta-malas
+    const lip = mesh(new THREE.BoxGeometry(1.5, 0.04, 0.16), accent, body);
+    lip.position.set(0, 1.05, -2.28);
   }
 
   // retrovisores
@@ -329,6 +392,10 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
   let steeringWheel = null;
   let dashScreen = null;
   let mirrorGlass = null;
+  let driver = null;
+  let setGear = () => {};
+  const driverSeatParts = [];
+  const floorMatParts = [];
   const needles = { tach: null, speed: null };
   const shiftLights = [];
   if (interior) {
@@ -361,9 +428,16 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     const redMat = new THREE.MeshStandardMaterial({ color: 0xb3121f, roughness: 0.5, metalness: 0.25 });
 
     // ---- painel ----
+    const dashMatte = new THREE.MeshStandardMaterial({
+      map: carbonTexture(),
+      color: 0x53535c,
+      roughness: 0.84,
+      metalness: 0.14,
+      envMapIntensity: 0.22,
+    });
     const dash = mesh(new RoundedBoxGeometry(1.6, 0.16, 0.5, 4, 0.035), suede, body);
     dash.position.set(0, 0.95, 0.61);
-    const dashTop = mesh(new RoundedBoxGeometry(1.44, 0.03, 0.36, 3, 0.012), carbon, body);
+    const dashTop = mesh(new RoundedBoxGeometry(1.44, 0.03, 0.36, 3, 0.012), dashMatte, body);
     dashTop.position.set(0, 1.045, 0.62);
     dashTop.rotation.x = -0.11;
 
@@ -489,11 +563,11 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     body.add(steeringWheel);
 
     const wheelSuede = new THREE.MeshStandardMaterial({
-      map: suedeTexture("wheel", [17, 16, 20], 9),
-      roughness: 0.94,
-      metalness: 0.02,
+      map: suedeTexture("wheel", [72, 66, 76], 16),
+      roughness: 0.86,
+      metalness: 0.04,
     });
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.148, 0.018, 12, 44, Math.PI * 1.66), wheelSuede);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.155, 0.024, 12, 44, Math.PI * 1.66), wheelSuede);
     rim.rotation.z = -Math.PI / 3; // abre o vão embaixo (flat bottom)
     steeringWheel.add(rim);
     const flatBar = new THREE.Mesh(new THREE.BoxGeometry(0.158, 0.024, 0.022), wheelSuede);
@@ -517,9 +591,12 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     hubBadge.position.z = -0.032;
     hubBadge.rotation.y = Math.PI;
     steeringWheel.add(hubBadge);
-    const marker = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.018, 0.012), new THREE.MeshBasicMaterial({ color: 0xffd319 }));
-    marker.position.set(0, 0.15, 0);
+    const marker = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.02, 0.014), new THREE.MeshBasicMaterial({ color: 0xffd319 }));
+    marker.position.set(0, 0.155, 0.004);
     steeringWheel.add(marker);
+    const markerRed = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.034, 0.012), new THREE.MeshBasicMaterial({ color: 0xff3b2f }));
+    markerRed.position.set(0, 0.132, 0.004);
+    steeringWheel.add(markerRed);
 
     // borboletas de troca
     for (const sx of [-1, 1]) {
@@ -553,6 +630,7 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
       mat.rotation.x = -Math.PI / 2;
       mat.position.set(sx, 0.947, -0.16);
       body.add(mat);
+      floorMatParts.push(mat);
     }
 
     const consoleBox = mesh(new RoundedBoxGeometry(0.28, 0.22, 0.78, 3, 0.06), suede, body, false);
@@ -605,45 +683,239 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
 
     // ---- bancos concha ----
     for (const [sx, mat, belt] of [[-0.37, suedeRed, beltMat], [0.4, suede, null]]) {
-      const base = mesh(new RoundedBoxGeometry(0.5, 0.15, 0.54, 3, 0.06), mat, body);
+      const mine = sx < 0 ? driverSeatParts : null;
+      const add = (m) => { if (mine) mine.push(m); return m; };
+      const base = add(mesh(new RoundedBoxGeometry(0.5, 0.15, 0.54, 3, 0.06), mat, body));
       base.position.set(sx, 0.99, -0.42);
       for (const bx of [-1, 1]) {
-        const bolster = mesh(new RoundedBoxGeometry(0.09, 0.12, 0.5, 2, 0.03), mat, body);
+        const bolster = add(mesh(new RoundedBoxGeometry(0.09, 0.12, 0.5, 2, 0.03), mat, body));
         bolster.position.set(sx + bx * 0.23, 1.035, -0.4);
         bolster.rotation.z = bx * 0.12;
       }
-      const back = mesh(new RoundedBoxGeometry(0.46, 0.5, 0.15, 3, 0.06), mat, body);
+      const back = add(mesh(new RoundedBoxGeometry(0.46, 0.5, 0.15, 3, 0.06), mat, body));
       back.position.set(sx, 1.16, -0.72);
       back.rotation.x = -0.14;
       for (const bx of [-1, 1]) {
-        const side = mesh(new RoundedBoxGeometry(0.085, 0.42, 0.17, 2, 0.04), mat, body);
+        const side = add(mesh(new RoundedBoxGeometry(0.085, 0.42, 0.17, 2, 0.04), mat, body));
         side.position.set(sx + bx * 0.2, 1.15, -0.7);
         side.rotation.x = -0.14;
         side.rotation.z = bx * 0.1;
       }
-      const head = mesh(new RoundedBoxGeometry(0.28, 0.13, 0.12, 2, 0.05), mat, body);
+      const head = add(mesh(new RoundedBoxGeometry(0.28, 0.13, 0.12, 2, 0.05), mat, body));
       head.position.set(sx, 1.375, -0.775);
       head.rotation.x = -0.14;
       for (const hx of [-1, 1]) {
-        const slot = mesh(new THREE.BoxGeometry(0.055, 0.045, 0.02), padMat, body, false);
+        const slot = add(mesh(new THREE.BoxGeometry(0.055, 0.045, 0.02), padMat, body, false));
         slot.position.set(sx + hx * 0.1, 1.3, -0.795);
         slot.rotation.x = -0.14;
       }
       for (const rx of [-1, 1]) {
-        const rail = mesh(new THREE.BoxGeometry(0.05, 0.04, 0.5), brushed, body, false);
+        const rail = add(mesh(new THREE.BoxGeometry(0.05, 0.04, 0.5), brushed, body, false));
         rail.position.set(sx + rx * 0.16, 0.932, -0.4);
       }
       if (belt) {
         for (const bx of [-1, 1]) {
-          const strap = mesh(new THREE.BoxGeometry(0.055, 0.34, 0.008), belt, body, false);
+          const strap = add(mesh(new THREE.BoxGeometry(0.055, 0.34, 0.008), belt, body, false));
           strap.position.set(sx + bx * 0.145, 1.19, -0.628);
           strap.rotation.z = -bx * 0.15;
         }
-        const lap = mesh(new THREE.BoxGeometry(0.4, 0.05, 0.008), belt, body, false);
+        const lap = add(mesh(new THREE.BoxGeometry(0.4, 0.05, 0.008), belt, body, false));
         lap.position.set(sx, 1.015, -0.56);
-        const buckle = mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), brushed, body, false);
+        const buckle = add(mesh(new THREE.BoxGeometry(0.07, 0.05, 0.02), brushed, body, false));
         buckle.position.set(sx, 1.015, -0.55);
       }
+    }
+
+    // ---- piloto (corpo, braços com IK e troca de marcha) ----
+    const suit = new THREE.MeshStandardMaterial({ color: 0x2a3654, roughness: 0.74, metalness: 0.08, envMapIntensity: 0.45 });
+    const suitRed = new THREE.MeshStandardMaterial({ color: 0x9c1020, roughness: 0.8, metalness: 0.05 });
+    const glove = new THREE.MeshStandardMaterial({ color: 0xc01824, roughness: 0.36, metalness: 0.12 });
+    const helmetMat = new THREE.MeshStandardMaterial({ color: 0xe9e7e0, roughness: 0.26, metalness: 0.18, envMapIntensity: 1.0 });
+    const visorMat = new THREE.MeshPhysicalMaterial({
+      color: 0x0a1622, roughness: 0.04, metalness: 0.9,
+      envMapIntensity: 1.5, transparent: true, opacity: 0.92,
+    });
+
+    const driverGroup = new THREE.Group();
+    driverGroup.position.set(-0.37, 0, 0);
+    body.add(driverGroup);
+
+    const torsoGroup = new THREE.Group();
+    driverGroup.add(torsoGroup);
+    const torso = mesh(new RoundedBoxGeometry(0.36, 0.42, 0.26, 3, 0.06), suit, torsoGroup);
+    torso.position.set(0, 1.1, -0.34);
+    torso.rotation.x = -0.18;
+    const chestStripe = mesh(new THREE.BoxGeometry(0.05, 0.4, 0.012), suitRed, torsoGroup, false);
+    chestStripe.position.set(0, 1.1, -0.208);
+    chestStripe.rotation.x = -0.18;
+    for (const sx of [-1, 1]) {
+      const strap = mesh(new THREE.BoxGeometry(0.045, 0.34, 0.012), beltMat, torsoGroup, false);
+      strap.position.set(sx * 0.085, 1.13, -0.2);
+      strap.rotation.z = sx * 0.16;
+      strap.rotation.x = -0.18;
+    }
+    const beltBuckle = mesh(new THREE.BoxGeometry(0.085, 0.05, 0.02), brushed, torsoGroup, false);
+    beltBuckle.position.set(0, 1.02, -0.215);
+    const lapBelt = mesh(new THREE.BoxGeometry(0.34, 0.045, 0.012), beltMat, torsoGroup, false);
+    lapBelt.position.set(0, 1.005, -0.225);
+
+    const headGroup = new THREE.Group();
+    driverGroup.add(headGroup);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.044, 0.05, 0.09, 10), suit);
+    neck.position.set(0, 1.235, -0.305);
+    headGroup.add(neck);
+    const helmet = mesh(new THREE.SphereGeometry(0.103, 20, 16), helmetMat, headGroup);
+    helmet.position.set(0, 1.305, -0.305);
+    helmet.scale.set(0.96, 1, 1.04);
+    const helmetStripe = mesh(new THREE.BoxGeometry(0.05, 0.012, 0.19), suitRed, headGroup, false);
+    helmetStripe.position.set(0, 1.402, -0.305);
+    const visor = new THREE.Mesh(new RoundedBoxGeometry(0.14, 0.062, 0.026, 2, 0.012), visorMat);
+    visor.position.set(0, 1.318, -0.196);
+    visor.rotation.x = -0.12;
+    headGroup.add(visor);
+    const chinVent = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.028, 0.02), padMat);
+    chinVent.position.set(0, 1.268, -0.207);
+    headGroup.add(chinVent);
+    const helmetVent = mesh(new THREE.BoxGeometry(0.055, 0.012, 0.09), padMat, headGroup, false);
+    helmetVent.position.set(0, 1.408, -0.29);
+
+    // braços: ombro -> cotovelo -> mão (IK de dois ossos)
+    const armSpec = [
+      { base: Math.PI, sx: -1, pole: new THREE.Vector3(-0.32, -1, -0.12) },
+      { base: 0, sx: 1, pole: new THREE.Vector3(0.32, -1, -0.12) },
+    ];
+    const arms = armSpec.map(({ base, sx, pole }) => {
+      const group = new THREE.Group();
+      driverGroup.add(group);
+      const upperGeo = new THREE.CylinderGeometry(0.046, 0.04, 1, 10);
+      const upper = new THREE.Mesh(upperGeo, suit);
+      upper.userData.baseLen = 1;
+      group.add(upper);
+      const lowerGeo = new THREE.CylinderGeometry(0.04, 0.033, 1, 10);
+      const lower = new THREE.Mesh(lowerGeo, suit);
+      lower.userData.baseLen = 1;
+      group.add(lower);
+      const elbowJoint = new THREE.Mesh(new THREE.SphereGeometry(0.04, 10, 8), suit);
+      group.add(elbowJoint);
+      const shoulderJoint = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), suit);
+      group.add(shoulderJoint);
+      const cuff = new THREE.Mesh(new THREE.CylinderGeometry(0.049, 0.049, 0.05, 10), suitRed);
+      cuff.userData.baseLen = 1;
+      group.add(cuff);
+      const hand = new THREE.Mesh(new RoundedBoxGeometry(0.095, 0.072, 0.115, 2, 0.028), glove);
+      group.add(hand);
+      return {
+        base, arm: group, upper, lower, elbowJoint, shoulderJoint, cuff, hand, pole,
+        shoulder: new THREE.Vector3(sx * 0.19, 1.225, -0.3),
+        length: 0.42,
+      };
+    });
+
+    const wheelEuler = new THREE.Euler(-0.38, 0, 0, "XYZ");
+    const rimTarget = new THREE.Vector3();
+    const elbowPoint = new THREE.Vector3();
+    const handTarget = new THREE.Vector3();
+    const knobTarget = new THREE.Vector3(0.43, 1.085, 0.13);
+
+    driver = {
+      group: driverGroup,
+      arms,
+      head: headGroup,
+      torso: torsoGroup,
+      shiftTimer: 0,
+      shift() {
+        this.shiftTimer = 0.42;
+      },
+      update(dt, info = {}) {
+        this.shiftTimer = Math.max(0, this.shiftTimer - (dt || 0));
+        const prog = this.shiftTimer > 0 ? 1 - this.shiftTimer / 0.42 : 0;
+        const reach = Math.sin(Math.PI * Math.min(1, prog));
+        const rot = Math.max(-1, Math.min(1, info.steer || 0));
+        wheelEuler.set(-0.38, 0, rot, "XYZ");
+
+        for (const a of arms) {
+          // mão esquerda sempre no aro; direita saqueia para a alavanca
+          rimTarget.set(Math.cos(a.base) * 0.16, Math.sin(a.base) * 0.16, -0.014).applyEuler(wheelEuler);
+          rimTarget.x += 0;
+          rimTarget.y += 0.842;
+          rimTarget.z += 0.315;
+          if (a.base === 0) {
+            handTarget.copy(rimTarget).lerp(knobTarget, reach);
+          } else {
+            handTarget.copy(rimTarget);
+          }
+          solveElbow(a.shoulder, handTarget, a.length, a.length, a.pole, elbowPoint);
+          orientLimb(a.upper, a.shoulder, elbowPoint);
+          orientLimb(a.lower, elbowPoint, handTarget);
+          a.elbowJoint.position.copy(elbowPoint);
+          a.shoulderJoint.position.copy(a.shoulder);
+          a.cuff.position.copy(handTarget).lerp(elbowPoint, 0.12);
+          a.cuff.quaternion.copy(a.lower.quaternion);
+          a.hand.position.copy(handTarget);
+          a.hand.quaternion.copy(a.lower.quaternion);
+        }
+        // respiração discreta
+        const bob = Math.sin((info.time || 0) * 1.9) * 0.0022;
+        headGroup.position.y = bob;
+        torsoGroup.position.y = bob * 0.45;
+      },
+    };
+
+    // ---- visor de marcha em cima do volante ----
+    const gearCanvas = document.createElement("canvas");
+    gearCanvas.width = 160;
+    gearCanvas.height = 112;
+    const gearCtx = gearCanvas.getContext("2d");
+    const gearTex = new THREE.CanvasTexture(gearCanvas);
+    gearTex.colorSpace = THREE.SRGBColorSpace;
+    gearTex.minFilter = THREE.LinearFilter;
+    gearTex.magFilter = THREE.LinearFilter;
+    gearTex.generateMipmaps = false;
+    let shownGear = 0;
+    setGear = (n) => {
+      if (n === shownGear) return;
+      shownGear = n;
+      gearCtx.fillStyle = "#050609";
+      gearCtx.fillRect(0, 0, 160, 112);
+      gearCtx.strokeStyle = "rgba(55,230,255,0.35)";
+      gearCtx.lineWidth = 3;
+      gearCtx.strokeRect(5, 5, 150, 102);
+      gearCtx.textAlign = "center";
+      gearCtx.fillStyle = "#37e6ff";
+      gearCtx.font = "700 13px Arial, Helvetica, sans-serif";
+      gearCtx.fillText("MARCHA", 80, 24);
+      gearCtx.fillStyle = "#ffd319";
+      gearCtx.shadowColor = "#ff8a1a";
+      gearCtx.shadowBlur = 16;
+      gearCtx.font = "italic 900 72px Arial, Helvetica, sans-serif";
+      gearCtx.fillText(String(n), 80, 93);
+      gearCtx.shadowBlur = 0;
+      gearTex.needsUpdate = true;
+    };
+    setGear(1, true);
+
+    const gearGroup = new THREE.Group();
+    gearGroup.position.set(-0.37, 1.072, 0.292);
+    gearGroup.rotation.x = -0.24;
+    body.add(gearGroup);
+    const gearPod = mesh(new RoundedBoxGeometry(0.19, 0.13, 0.05, 2, 0.02), padMat, gearGroup, false);
+    const gearScreen = new THREE.Mesh(
+      new THREE.PlaneGeometry(0.155, 0.102),
+      new THREE.MeshBasicMaterial({ map: gearTex, toneMapped: false })
+    );
+    gearScreen.position.z = -0.027;
+    gearScreen.rotation.y = Math.PI;
+    gearGroup.add(gearScreen);
+    for (let i = 0; i < 4; i++) {
+      const led = new THREE.Mesh(
+        new THREE.CircleGeometry(0.0072, 10),
+        new THREE.MeshBasicMaterial({ color: 0x241114 })
+      );
+      led.position.set(-0.054 + i * 0.036, 0.074, -0.027);
+      led.rotation.y = Math.PI;
+      led.userData.on = i < 2 ? 0x33ff66 : i < 3 ? 0xffb020 : 0xff2a14;
+      gearGroup.add(led);
+      shiftLights.push(led);
     }
 
     // ---- gaiola de segurança ----
@@ -768,6 +1040,10 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     steeringWheel,
     needles,
     shiftLights,
+    driver,
+    driverSeatParts,
+    floorMatParts,
+    setGear,
     dashScreen,
     mirrorGlass,
     exhaustTips,

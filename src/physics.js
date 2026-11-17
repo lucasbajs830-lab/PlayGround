@@ -38,6 +38,10 @@ export class DragSim {
     this.releaseQuality = 1;
     this.lateral = 0;
     this.lateralV = 0;
+    this.slide = 0;
+    this.wallTimer = 0;
+    this.crashed = false;
+    this.crashes = 0;
     this.odo = 0;
     this.launched = false;
     this.justReleased = false;
@@ -117,6 +121,7 @@ export class DragSim {
     this.justReleased = false;
     this.justShifted = false;
     this.hitWall = false;
+    this.crashed = false;
 
     this.throttle = clamp(input.throttle || 0, 0, 1);
     const clutchNow = !!input.clutch;
@@ -139,6 +144,7 @@ export class DragSim {
 
     this.shiftTimer = Math.max(0, this.shiftTimer - dt);
     this.bogTimer = Math.max(0, this.bogTimer - dt);
+    this.wallTimer = Math.max(0, this.wallTimer - dt);
     if (this.clutchSlip > 0) this.clutchSlip = Math.max(0, this.clutchSlip - dt);
 
     const wheelRps = this.speed / (2 * Math.PI * s.wheelRadius);
@@ -226,17 +232,43 @@ export class DragSim {
     this.distance += avg * dt;
     this.odo += avg * dt;
 
-    // ---- volante / faixa ----
-    if (this.speed > 1) {
-      this.lateralV += this.steer * this.speed * 0.30 * dt;
+    // ---- volante, curva e faixa ----
+    const kappa = input.curvature || 0;
+    const latLimit = input.lateralLimit || 3.4;
+    if (this.speed > 1.2) {
+      // força lateral disponível: acima disso o carro "lava" para fora da curva
+      const latMax = s.grip * G * 0.95;
+      const demand = this.speed * this.speed * Math.abs(kappa);
+      if (demand > latMax) {
+        const excess = demand - latMax;
+        this.lateralV -= Math.sign(kappa) * excess * 0.62 * dt;
+        this.speed = Math.max(0, this.speed - excess * 0.045 * dt);
+        this.slide = clamp(excess / Math.max(latMax, 1), 0, 1);
+      } else {
+        this.slide = Math.max(0, this.slide - dt * 1.8);
+      }
+      // esterço do jogador muda a linha (e gasta um pouco de aderência)
+      this.lateralV += this.steer * this.speed * 0.15 * dt;
+      if (Math.abs(this.steer) > 0.15) this.speed = Math.max(0, this.speed - Math.abs(this.steer) * dt * 0.9);
+      // arrasto de curva
+      this.speed = Math.max(0, this.speed - Math.abs(kappa) * this.speed * this.speed * 0.0045 * dt);
     }
-    this.lateralV *= Math.exp(-dt * 2.1);
+    this.lateralV *= Math.exp(-dt * 1.7);
     this.lateral += this.lateralV * dt;
-    if (Math.abs(this.lateral) > 2.9) {
-      this.lateral = clamp(this.lateral, -2.9, 2.9);
-      this.lateralV *= -0.25;
-      this.speed *= 0.992;
+    if (Math.abs(this.lateral) > latLimit) {
+      const side = Math.sign(this.lateral);
+      this.lateral = side * latLimit;
+      this.lateralV *= -0.22;
       this.hitWall = true;
+      if (this.wallTimer <= 0) {
+        // batida de verdade: perde velocidade e leva um susto
+        this.speed *= 0.78;
+        this.wallTimer = 0.7;
+        this.crashed = true;
+        this.crashes++;
+      } else {
+        this.speed = Math.max(0, this.speed - dt * 6);
+      }
     }
 
     // velocímetro/limite de giro

@@ -4,7 +4,7 @@ import { createCarModel } from "./three/carModel.js";
 import { TelemetryScreen, MirrorFeed, WindowFeed } from "./three/liveScreens.js";
 import { buildTrack } from "./three/track.js";
 import { Effects } from "./three/effects.js";
-import { DragSim, clamp, QUARTER_MILE } from "./physics.js";
+import { DragSim, clamp } from "./physics.js";
 import {
   CARS, RIVALS, PAINTS, RIVAL_PAINTS, UPGRADES, upgradeCost,
   buildSpec, carById,
@@ -13,27 +13,19 @@ import { loadSave, persist, money } from "./save.js";
 import { GameAudio } from "./audio.js";
 import { UI } from "./ui.js";
 
-const LANE = 4.2;
-const START_Z = -1.43;
-const FINISH = QUARTER_MILE;
 const RIVAL_POWER = [0.78, 0.87, 0.95, 1.0, 1.05, 1.1, 1.15, 1.22];
 
 const dt = 1 / 120;
 
-function simulateTargetET(spec) {
-  const sim = new DragSim(spec);
-  for (let i = 0; i < 240; i++) {
-    const thr = sim.engineRpm < spec.launchRpm ? 1 : 0.15;
-    sim.step(dt, { throttle: thr, clutch: true }, true);
-    if (sim.engineRpm >= spec.launchRpm) break;
-  }
-  let t = 0;
-  let guard = 0;
-  while (sim.distance < FINISH && guard++ < 120 * 22) {
-    const thr = sim.wheelspin > 0.6 ? 0.65 : 1;
-    sim.step(dt, { throttle: thr, clutch: false }, false);
-    sim.autoShift();
-    t += dt;
+function simulateTargetET(spec, course) {
+  const top = Math.min(
+    86,
+    (spec.redline / 60 / (spec.gears[spec.gears.length - 1] * spec.finalDrive)) * 2 * Math.PI * spec.wheelRadius
+  );
+  let t = 2.0;
+  for (let d = 0; d < course.FINISH; d += 5) {
+    const v = Math.min(top, course.speedAt(course.START_S + d));
+    t += 5 / Math.max(9, v);
   }
   return t;
 }
@@ -146,6 +138,10 @@ export class Game {
     this.scene.add(this.track.group);
     this.track.setTree({ a: [false, false, false], green: false, red: false });
     this.effects = new Effects(this.scene);
+    this.startS = this.track.START_S;
+    this.finishDistance = this.track.FINISH;
+    this.lineClock = 0;
+    this._gearShown = 0;
   }
 
   initCars() {
@@ -155,7 +151,7 @@ export class Game {
 
     this.rivalModels = {};
     for (const car of CARS) {
-      const model = createCarModel({ paint: "#25c45b", interior: false });
+      const model = createCarModel({ paint: "#25c45b", interior: false, kit: car.kit });
       const group = new THREE.Group();
       group.add(model.root);
       group.visible = false;
@@ -164,7 +160,12 @@ export class Game {
     }
 
     this.rebuildPlayerCar();
-    this.playerGroup.position.set(LANE, 0, START_Z);
+    this.track.placeAt(this.playerGroup, this.startS - 1.4, this.track.LANE);
+
+    // luz de cabine: mantém volante, mãos e painel legíveis no cockpit
+    this.cabinLight = new THREE.PointLight(0xd2e0ff, 0.7, 2.2, 2);
+    this.cabinFill = new THREE.PointLight(0xffc98a, 0.16, 1.8, 2);
+    this.scene.add(this.cabinLight, this.cabinFill);
   }
 
   rebuildPlayerCar() {
@@ -178,7 +179,7 @@ export class Game {
       });
       this.playerModel = null;
     }
-    this.playerModel = createCarModel({ paint, interior: true });
+    this.playerModel = createCarModel({ paint, interior: true, kit: car.kit });
     if (!this.telemetry) this.telemetry = new TelemetryScreen();
     if (!this.mirrorFeed) this.mirrorFeed = new MirrorFeed(this.renderer, this.scene);
     this.applyCabinScreens();
@@ -204,7 +205,7 @@ export class Game {
     if (this.rivalTargetCache.has(key)) return this.rivalTargetCache.get(key);
     const spec = buildSpec(carById(info.car), info.upgrades);
     spec.torque *= info.power;
-    const t = simulateTargetET(spec);
+    const t = simulateTargetET(spec, this.track);
     this.rivalTargetCache.set(key, t);
     return t;
   }
@@ -311,25 +312,28 @@ export class Game {
       this.audio.pop(0.6);
       this.audio.whoosh();
       this.spawnBackfire();
+      this.playerModel?.driver?.shift();
     }
   }
 
   playerInput() {
     const k = this.keys;
-    let throttle = k.KeyW || k.ArrowUp || this.touchGas ? 1 : 0;
-    let clutch = k.KeyS || k.ArrowDown || k.Space || this.touchClutch;
-    let brake = 0;
+    const gas = !!(k.KeyW || k.ArrowUp || this.touchGas);
+    const pedal = !!(k.KeyS || k.ArrowDown || this.touchClutch);
+    let throttle = gas ? 1 : 0;
+    let clutch = !!(k.Space) || (pedal && !this.greenReached);
+    let brake = this.greenReached && pedal ? 1 : 0;
     if (this.playerFinished) {
       throttle = 0;
       clutch = false;
       brake = 1;
     }
-    return { throttle, clutch: !!clutch, steer: this.steer, brake };
+    return { throttle, clutch, steer: this.steer, brake };
   }
 
   playerClutchPressed() {
     const k = this.keys;
-    return !!(k.KeyS || k.ArrowDown || k.Space || this.touchClutch);
+    return !!(k.Space || (!this.greenReached && (k.KeyS || k.ArrowDown || this.touchClutch)));
   }
 
   // ---------- camera ----------
@@ -346,10 +350,28 @@ export class Game {
     const t = this.time;
 
     const inside = this.mode === "race" && this.cameraMode === "cockpit";
-    if (this.playerModel?.windshieldGroup) this.playerModel.windshieldGroup.visible = !inside;
     if (this.playerModel?.windshieldGlass) this.playerModel.windshieldGlass.visible = !inside;
     if (this.playerModel?.sideGlassParts) for (const m of this.playerModel.sideGlassParts) m.visible = !inside;
     if (this.playerModel?.roofParts) for (const m of this.playerModel.roofParts) m.visible = !inside;
+    if (this.playerModel?.driver) {
+      // na câmera interna o capacete/torso ficariam dentro da lente
+      this.playerModel.driver.head.visible = !inside;
+      this.playerModel.driver.torso.visible = !inside;
+    }
+    if (this.playerModel?.driverSeatParts) {
+      for (const m of this.playerModel.driverSeatParts) m.visible = !inside;
+    }
+    if (this.playerModel?.floorMatParts) {
+      for (const m of this.playerModel.floorMatParts) m.visible = !inside;
+    }
+    if (this.playerModel?.driver?.arms) {
+      // no cockpit sobram só os antebraços e as mãos, estilo primeira pessoa
+      for (const a of this.playerModel.driver.arms) {
+        a.upper.visible = !inside;
+        a.shoulderJoint.visible = !inside;
+        a.elbowJoint.visible = !inside;
+      }
+    }
     if (this.mode === "menu" || this.mode === "boot" || this.mode === "help") {
       const a = 0.68 + Math.sin(t * 0.11) * 0.22;
       const r = 8.6;
@@ -399,17 +421,18 @@ export class Game {
 
     // cockpit
     const accel = sim.accel;
-    const shake = Math.min(0.02, sim.speed * 0.00007 + sim.wheelspin * 0.01);
-    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.23, -0.27));
+    const crash = this.crashShake || 0;
+    const shake = Math.min(0.035, sim.speed * 0.00007 + sim.wheelspin * 0.01 + crash * 0.03);
+    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.235, -0.30));
     base.x += Math.sin(t * 53) * shake;
     base.y += Math.sin(t * 61 + 1.3) * shake * 0.7;
     base.z += Math.cos(t * 47) * shake * 0.5;
     cam.position.copy(base);
-    const pitch = -0.055 - accel * 0.0035 + Math.sin(t * 44) * shake * 0.35;
-    const roll = -this.steer * 0.035 * speedN + Math.sin(t * 37) * shake * 0.3;
+    const pitch = -0.07 - accel * 0.0035 + Math.sin(t * 44) * shake * 0.35;
+    const roll = -this.steer * 0.03 * speedN + Math.sin(t * 37) * shake * 0.3;
     const yaw = this.steer * 0.05 * speedN;
-    cam.rotation.set(pitch, Math.PI + yaw, roll, "YXZ");
-    const fov = 66 + speedN * 17 + Math.min(4, sim.wheelspin * 4);
+    cam.rotation.set(pitch, this.playerGroup.rotation.y + Math.PI + yaw, roll + this.playerGroup.rotation.z * 0.8, "YXZ");
+    const fov = 64 + speedN * 13 + Math.min(3, sim.wheelspin * 3);
     cam.fov += (fov - cam.fov) * Math.min(1, rdt * 4);
     cam.updateProjectionMatrix();
   }
@@ -441,8 +464,8 @@ export class Game {
     this.playerSim.reset();
     this.playerSim.clutch = true;
     this.playerSim.prevClutch = true;
-    this.playerGroup.position.set(LANE, 0, START_Z);
-    this.playerGroup.rotation.set(0, 0, 0);
+    this.track.placeAt(this.playerGroup, this.startS - 1.4, this.track.LANE);
+    this.crashShake = 0;
     this.track.setTree({ a: [false, false, false], green: false, red: false });
     this.effects.clear();
     this.ui.showLaunch(false);
@@ -609,13 +632,15 @@ export class Game {
     this.playerSim.reset();
     this.playerSim.clutch = true;
     this.playerSim.prevClutch = true;
-    this.playerGroup.position.set(LANE, 0, START_Z);
+    this.track.placeAt(this.playerGroup, this.startS - 1.4, this.track.LANE);
+    this.crashShake = 0;
+    this._gearShown = 0;
     this.playerModel.setPaint(PAINTS.find((p) => p.id === (this.save.paints[this.save.selected] || "laranja"))?.hex || "#ff5a12");
     const rivalEntry = this.rivalModels[info.car];
     for (const key of Object.keys(this.rivalModels)) this.rivalModels[key].group.visible = key === info.car;
     rivalEntry.model.setPaint(RIVAL_PAINTS[info.idx % RIVAL_PAINTS.length]);
     rivalEntry.group.visible = true;
-    rivalEntry.group.position.set(-LANE, 0, START_Z);
+    this.track.placeAt(rivalEntry.group, this.startS - 1.4, -this.track.LANE);
 
     this.track.setTree({ a: [false, false, false], green: false, red: false });
     this.effects.clear();
@@ -680,6 +705,9 @@ export class Game {
 
     const pin = !this.greenReached;
     const pInput = this.playerInput();
+    const pFrame = this.track.frameAt(this.startS + this.playerSim.distance);
+    pInput.curvature = pFrame.kappa;
+    pInput.lateralLimit = 3.9;
     const clutchNow = this.playerClutchPressed();
 
     if (!this.greenReached && !this.foul && this.lastClutch && !clutchNow && pInput.throttle > 0.15) {
@@ -688,6 +716,11 @@ export class Game {
     this.lastClutch = clutchNow;
 
     this.playerSim.step(h, pInput, pin);
+    if (this.playerSim.crashed) {
+      this.crashShake = 1;
+      this.audio.beep(90, 0.18, 0.3, "sawtooth");
+      this.ui.toast("BATEU NO MURO!", 900);
+    }
     if (this.autoShift && this.greenReached && !this.playerFinished) {
       const before = this.playerSim.gear;
       this.playerSim.autoShift();
@@ -695,21 +728,30 @@ export class Game {
         this.audio.pop(0.6);
         this.audio.whoosh();
         this.spawnBackfire();
+        this.playerModel?.driver?.shift();
       }
     }
 
-    // rival
+    // rival: segue a pista e freia para as curvas
     const rSim = this.rivalSim;
     const locked = !this.greenReached;
     const rThrottle = rSim.engineRpm < this.rivalSpec.launchRpm ? 1 : 0.15;
+    const rFrame = this.track.frameAt(this.startS + rSim.distance);
+    const look = Math.min(this.finishDistance, rSim.distance + 16 + rSim.speed * 0.55);
+    const rTarget = this.track.speedAt(this.startS + look) * 0.93;
     let rInput;
     if (locked) {
-      rInput = { throttle: rThrottle, clutch: true, steer: 0, brake: 0 };
+      rInput = { throttle: rThrottle, clutch: true, steer: 0, brake: 0, curvature: rFrame.kappa };
     } else if (this.raceClock < this.greenClock + this.rivalReaction) {
-      rInput = { throttle: rThrottle, clutch: true, steer: 0, brake: 0 };
+      rInput = { throttle: rThrottle, clutch: true, steer: 0, brake: 0, curvature: rFrame.kappa };
+    } else if (this.rivalFinished) {
+      rInput = { throttle: 0, clutch: false, steer: 0, brake: 1, curvature: rFrame.kappa };
+    } else if (rSim.speed > rTarget + 1.2) {
+      rInput = { throttle: 0, clutch: false, steer: 0, brake: 0.85, curvature: rFrame.kappa };
+    } else if (rSim.speed > rTarget - 1.2) {
+      rInput = { throttle: rSim.wheelspin > 0.6 ? 0.5 : 0.35, clutch: false, steer: 0, brake: 0.15, curvature: rFrame.kappa };
     } else {
-      const thr = rSim.wheelspin > 0.6 ? 0.65 : 1;
-      rInput = { throttle: thr, clutch: false, steer: 0, brake: this.rivalFinished ? 1 : 0 };
+      rInput = { throttle: rSim.wheelspin > 0.6 ? 0.65 : 1, clutch: false, steer: 0, brake: 0, curvature: rFrame.kappa };
     }
     rSim.step(h, rInput, locked);
     if (this.greenReached && !this.rivalFinished && !locked) {
@@ -719,7 +761,7 @@ export class Game {
     }
 
     // chegadas
-    if (!this.playerFinished && this.playerSim.distance >= FINISH) {
+    if (!this.playerFinished && this.playerSim.distance >= this.finishDistance) {
       this.playerFinished = true;
       this.playerFinishClock = this.raceClock;
       this.playerET = this.playerRunStart != null ? this.raceClock - this.playerRunStart : null;
@@ -727,7 +769,7 @@ export class Game {
       this.ui.toast(`CHEGOU! ${this.playerET ? this.playerET.toFixed(3) + "s" : ""}`, 1600);
       this.audio.pop(1);
     }
-    if (!this.rivalFinished && rSim.distance >= FINISH) {
+    if (!this.rivalFinished && rSim.distance >= this.finishDistance) {
       this.rivalFinished = true;
       this.rivalFinishClock = this.raceClock;
       this.rivalET = this.raceClock - (this.greenClock + this.rivalReaction);
@@ -769,7 +811,7 @@ export class Game {
     if (this.playerFinished && !this.rivalFinished && this.raceClock - this.playerFinishClock > 5 && this.endScheduled == null) {
       this.endScheduled = this.raceClock;
     }
-    if (!this.playerFinished && this.raceClock - this.greenClock > 20 && this.endScheduled == null) {
+    if (!this.playerFinished && this.raceClock - this.greenClock > 240 && this.endScheduled == null) {
       this.endScheduled = this.raceClock;
     }
     if (this.endScheduled != null && this.raceClock - this.endScheduled > 1.3) {
@@ -980,7 +1022,7 @@ export class Game {
         rpm: sim.rpmNorm,
         gear: sim.gear,
         distance: sim.distance,
-        finish: FINISH,
+        finish: this.finishDistance,
         gap: rsim ? rsim.distance - sim.distance : null,
         et: (this.mode === "race" || this.mode === "result") && this.playerFinished ? this.playerET : null,
         phase: this.mode === "race" || this.mode === "result"
@@ -1004,7 +1046,9 @@ export class Game {
     const p = this.playerModel;
     if (p) {
       const sim = this.playerSim;
-      this.playerGroup.position.set(LANE + sim.lateral, 0, START_Z + sim.distance);
+      const f = this.track.frameAt(this.startS + sim.distance);
+      const bank = clamp(f.kappa * sim.speed * sim.speed * 0.0045, -0.1, 0.1);
+      this.track.placeAt(this.playerGroup, this.startS + sim.distance, this.track.LANE + sim.lateral, bank);
       const spin = (sim.speed / this.playerSpec.wheelRadius) * rdt;
       for (const w of p.wheels) {
         w.spin.rotation.x -= spin;
@@ -1013,6 +1057,16 @@ export class Game {
       if (p.steeringWheel) p.steeringWheel.rotation.z = this.steer * 1.0;
       if (p.needles.tach) p.needles.tach.rotation.z = 2.25 - sim.rpmNorm * 4.5;
       if (p.needles.speed) p.needles.speed.rotation.z = 2.25 - Math.min(1, sim.speedKmh / 240) * 4.5;
+      if (sim.gear !== this._gearShown) {
+        this._gearShown = sim.gear;
+        p.setGear?.(sim.gear);
+        if (this.mode === "race") p.driver?.shift();
+      }
+      if (p.driver) p.driver.update(rdt, { steer: this.steer, time: this.time, speed: sim.speed });
+      if (this.cabinLight) {
+        this.cabinLight.position.copy(this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.15, 0.08)));
+        this.cabinFill.position.copy(this.playerGroup.localToWorld(new THREE.Vector3(0.05, 1.3, 0.2)));
+      }
       if (p.shiftLights?.length) {
         const rpm = sim.rpmNorm;
         const lit = this.mode === "race" ? Math.floor(rpm * 6.4) : 0;
@@ -1039,7 +1093,9 @@ export class Game {
       const entry = this.rivalModels[this.rivalInfo.car];
       if (entry && entry.group.visible) {
         const rsim = this.rivalSim;
-        entry.group.position.set(-LANE + rsim.lateral, 0, START_Z + rsim.distance);
+        const rf = this.track.frameAt(this.startS + rsim.distance);
+        const rbank = clamp(rf.kappa * rsim.speed * rsim.speed * 0.0045, -0.1, 0.1);
+        this.track.placeAt(entry.group, this.startS + rsim.distance, -this.track.LANE + rsim.lateral, rbank);
         const spin = (rsim.speed / this.rivalSpec.wheelRadius) * rdt;
         for (const w of entry.model.wheels) w.spin.rotation.x -= spin;
         if (rsim.wheelspin > 0.4 && Math.random() < rsim.wheelspin * 0.7) {
@@ -1094,10 +1150,36 @@ export class Game {
     }
     this.ui.setGear(sim.gear, hint, sim.rpmNorm);
     this.ui.setTimer(this.playerRunStart ? (this.playerFinished ? this.playerET : this.raceClock - this.playerRunStart) : 0);
-    this.ui.setDist(sim.distance);
-    if (this.rivalSim) this.ui.setGap(sim.distance, this.rivalSim.distance, FINISH);
-    this.ui.setPedals(this.touchGas || this.keys.KeyW || this.keys.ArrowUp, this.playerClutchPressed());
+    this.ui.setDist(sim.distance, this.finishDistance);
+    if (this.rivalSim) this.ui.setGap(sim.distance, this.rivalSim.distance, this.finishDistance);
+    const gasDown = !!(this.touchGas || this.keys.KeyW || this.keys.ArrowUp);
+    const pedalDown = this.playerClutchPressed() ||
+      (this.greenReached && !!(this.keys.KeyS || this.keys.ArrowDown || this.touchClutch));
+    this.ui.setPedals(gasDown, pedalDown);
     this.ui.setWheel(this.steer);
+
+    // linha de freio / acelerador (atualiza a 8 Hz)
+    if (this.mode === "race" && this.time - (this.lineClock || 0) > 0.12) {
+      this.lineClock = this.time;
+      const sWorld = this.startS + sim.distance;
+      const target = this.track.speedAt(sWorld);
+      const ahead = this.track.stateAt(sWorld + 8);
+      const corner = this.track.nextCorner(sWorld);
+      let advice = "MANTÉM";
+      if (sim.speed > target + 2.2) advice = "FREIA";
+      else if (ahead === 2 || sim.speed < target - 3) advice = "ACELERA";
+      this.ui.setRaceLine({
+        advice,
+        speed: sim.speedKmh,
+        target: target * 3.6,
+        cornerDist: corner ? Math.max(0, corner.entry - sWorld) : null,
+        cornerDir: corner ? corner.dir : 0,
+        cornerSpeed: corner ? corner.speed * 3.6 : null,
+        sWorld,
+        finishS: this.track.FINISH_S,
+        profile: this.track.raceLine,
+      });
+    }
 
     const kmh = sim.speedKmh;
     const op = this.mode === "race" ? clamp((kmh - 75) / 150, 0, 0.55) : 0;
@@ -1128,9 +1210,11 @@ export class Game {
     }
 
     this.updateCarVisuals(rdt);
+    this.crashShake = Math.max(0, (this.crashShake || 0) - rdt * 2.4);
     this.updateCamera(rdt);
     this.effects.update(rdt);
     this.track.update(this.time);
+    this.track.sky.position.set(this.playerGroup.position.x, 0, this.playerGroup.position.z);
 
     if (this.mode === "race") this.updateHud();
     else if (this.mode === "result") {

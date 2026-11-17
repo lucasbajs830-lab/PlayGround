@@ -424,7 +424,7 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
   position: absolute; left: 0; right: 0; bottom: 0;
   display: flex; align-items: flex-end; justify-content: space-between;
   gap: 18px;
-  padding: 0 24px calc(18px + env(safe-area-inset-bottom));
+  padding: 0 24px calc(10px + env(safe-area-inset-bottom));
 }
 .steer-side { display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: auto; }
 .wheel-pad {
@@ -446,12 +446,22 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
 .wheel-knob { position: absolute; left: 50%; top: 50%; width: 26px; height: 26px; margin: -13px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, #ffd319, #ff8a1a 60%, #b34a00); box-shadow: 0 0 12px rgba(255, 150, 20, 0.5); }
 .wheel-cap { position: absolute; left: 50%; top: 50%; width: 34px; height: 34px; margin: -17px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
 .steer-label { font-size: 8px; letter-spacing: 0.26em; color: var(--muted); font-weight: 700; text-shadow: 0 1px 4px #000; }
+.wheel-gear {
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 11px 2px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, rgba(9, 9, 14, 0.92), rgba(9, 9, 14, 0.55));
+  border: 1px solid rgba(255, 211, 25, 0.35);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.5), 0 0 18px rgba(255, 180, 20, 0.08) inset;
+}
+.wg-label { font-size: 7px; letter-spacing: 0.2em; color: var(--muted); font-weight: 800; }
+.wheel-gear .gear-num { font-size: 30px; line-height: 1; min-width: 20px; }
 
-.cluster { display: flex; flex-direction: column; align-items: center; gap: 5px; padding: 10px 20px 4px; min-width: 220px; border-radius: 14px; background: radial-gradient(ellipse at 50% 90%, rgba(0,0,0,0.55), rgba(0,0,0,0.18) 60%, transparent 78%); }
+.cluster { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 2px 20px 0; min-width: 200px; border-radius: 14px; background: radial-gradient(ellipse at 50% 90%, rgba(0,0,0,0.55), rgba(0,0,0,0.18) 60%, transparent 78%); }
 .speed-row { display: flex; align-items: baseline; gap: 7px; line-height: 0.82; }
-.speed-row span { font-family: var(--display); font-style: italic; font-size: 66px; letter-spacing: -0.03em; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
+.speed-row span { font-family: var(--display); font-style: italic; font-size: 48px; letter-spacing: -0.03em; color: #fff; text-shadow: 0 4px 20px rgba(0,0,0,0.8); font-variant-numeric: tabular-nums; }
 .speed-row em { font-style: normal; font-size: 10px; letter-spacing: 0.14em; color: var(--muted); font-weight: 700; }
-.rpm-strip { width: 220px; height: 8px; background: rgba(255,255,255,0.12); border-radius: 2px; position: relative; overflow: hidden; }
+.rpm-strip { width: 180px; height: 7px; background: rgba(255,255,255,0.12); border-radius: 2px; position: relative; overflow: hidden; }
 .rpm-zone { position: absolute; left: 44%; width: 20%; top: 0; bottom: 0; background: rgba(45, 255, 134, 0.22); border-left: 1px solid rgba(45,255,134,0.6); border-right: 1px solid rgba(45,255,134,0.6); z-index: 3; pointer-events: none; }
 .rpm-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0%; background: linear-gradient(90deg, #37e6ff, #ffd319 62%, #ff5b1a); border-radius: 2px; transition: width 0.05s linear; z-index: 2; }
 .rpm-red { position: absolute; right: 0; top: 0; bottom: 0; width: 14%; background: repeating-linear-gradient(45deg, rgba(255,46,77,0.8) 0 4px, rgba(255,46,77,0.2) 4px 8px); }
@@ -459,6 +469,33 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
 .gear-lbl { font-size: 7px; letter-spacing: 0.22em; color: var(--muted); font-weight: 700; }
 .gear-num { font-family: var(--display); font-size: 22px; color: var(--yellow); min-width: 22px; text-align: center; text-shadow: 0 0 16px rgba(255, 200, 30, 0.4); }
 .gear-hint { font-size: 7px; letter-spacing: 0.18em; color: #6b6878; font-weight: 700; }
+
+/* linha de freio / aceleração (HUD) */
+.race-line {
+  position: absolute; left: 50%; top: 124px; transform: translateX(-50%);
+  width: min(420px, 48vw);
+  padding: 7px 13px 6px;
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(6, 6, 10, 0.86), rgba(6, 6, 10, 0.46));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(9px);
+}
+.rl-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rl-advice { font-family: var(--display); font-style: italic; font-size: 18px; letter-spacing: 0.04em; line-height: 1; }
+.rl-advice.brake { color: #ff3b2f; text-shadow: 0 0 18px rgba(255, 59, 47, 0.65); }
+.rl-advice.accel { color: var(--green); text-shadow: 0 0 18px rgba(45, 255, 134, 0.55); }
+.rl-advice.hold { color: var(--yellow); text-shadow: 0 0 16px rgba(255, 211, 25, 0.35); }
+.rl-corner { font-size: 9px; letter-spacing: 0.1em; color: #c9c6d4; font-weight: 700; white-space: nowrap; }
+.rl-strip { display: flex; gap: 2px; height: 7px; margin: 7px 0 6px; }
+.rl-strip i { flex: 1; border-radius: 1px; background: rgba(255, 255, 255, 0.08); }
+.rl-strip i.brake { background: #ff3b2f; box-shadow: 0 0 9px rgba(255, 59, 47, 0.55); }
+.rl-strip i.accel { background: var(--green); box-shadow: 0 0 8px rgba(45, 255, 134, 0.35); }
+.rl-strip i.hold { background: rgba(255, 211, 25, 0.62); }
+.rl-strip i.off { background: rgba(255, 255, 255, 0.05); }
+.rl-strip i.now { outline: 1px solid rgba(255, 255, 255, 0.65); outline-offset: 1px; }
+.rl-foot { display: flex; justify-content: space-between; font-size: 8px; letter-spacing: 0.12em; color: #8d8a9a; font-weight: 700; }
+.rl-foot b { color: #fff; font-size: 11px; font-family: var(--display); letter-spacing: 0.02em; }
 
 .pedal-side { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; pointer-events: auto; }
 .shift-pair { display: flex; gap: 8px; }
@@ -590,11 +627,15 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
   .help-grid { grid-template-columns: 1fr; }
   .hud-bottom { padding: 0 12px calc(12px + env(safe-area-inset-bottom)); gap: 8px; }
   .wheel-pad { width: 108px; height: 108px; }
+  .wheel-gear .gear-num { font-size: 24px; }
+  .race-line { width: 84vw; top: 104px; padding: 5px 10px 4px; }
+  .rl-advice { font-size: 15px; }
+  .rl-corner { font-size: 8px; }
   .pedal.gas { width: 96px; height: 96px; font-size: 10px; }
   .pedal.brake { width: 68px; height: 68px; font-size: 9px; }
   .shift-btn { width: 46px; height: 38px; }
-  .speed-row span { font-size: 48px; }
-  .rpm-strip { width: 160px; }
+  .speed-row span { font-size: 42px; }
+  .rpm-strip { width: 150px; }
   .cluster { min-width: 0; }
   .tree-hud { top: 6px; min-width: 150px; padding: 7px 12px 6px; }
   .tree-lights i { width: 14px; height: 14px; }
@@ -613,9 +654,13 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
 @media (max-height: 520px) and (orientation: landscape) {
   .hud-bottom { padding-bottom: 8px; }
   .wheel-pad { width: 96px; height: 96px; }
+  .wheel-gear { padding: 2px 8px 1px; }
+  .wheel-gear .gear-num { font-size: 21px; }
+  .race-line { top: 92px; padding: 4px 9px 3px; }
+  .rl-strip { margin: 4px 0 4px; }
   .pedal.gas { width: 88px; height: 88px; }
   .pedal.brake { width: 62px; height: 62px; }
-  .speed-row span { font-size: 44px; }
+  .speed-row span { font-size: 38px; }
   .tree-hud { top: 4px; padding: 5px 12px; }
   .tree-timer { font-size: 18px; }
   .tree-phase { display: none; }

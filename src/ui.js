@@ -65,6 +65,13 @@ export class UI {
       prism: $("prism"),
       prismStatus: $("prism-status"),
       prismStart: $("btn-prism-start"),
+      raceLine: $("race-line"),
+      rlAdvice: $("rl-advice"),
+      rlCorner: $("rl-corner"),
+      rlStrip: $("rl-strip"),
+      rlSpeed: $("rl-speed"),
+      rlTarget: $("rl-target"),
+      menuTrack: $("menu-track"),
     };
     this.toastTimer = 0;
     this._bindStatic();
@@ -183,7 +190,11 @@ export class UI {
     this.el.record.textContent = save.races ? `${save.races} corridas · ${save.wins} vitórias` : "sem registro";
     this.el.rival.textContent = rival.name;
     this.el.rivalLine.textContent = rival.quote;
-    this.el.rivalTime.textContent = `ET alvo ${rival.target.toFixed(2)}s`;
+    this.el.rivalTime.textContent = `ALVO ${rival.target.toFixed(2)}s`;
+    if (this.el.menuTrack && this.game.track) {
+      const km = (this.game.track.FINISH / 1000).toFixed(2).replace(".", ",");
+      this.el.menuTrack.textContent = `${km} KM · ${this.game.track.corners.length} CURVAS`;
+    }
     this.el.sound.textContent = save.sound ? "🔊" : "🔇";
   }
 
@@ -257,7 +268,7 @@ export class UI {
     this.setTimer(0);
     this.setSpeed(0);
     this.setGear(1, "EMBREIE + ACELERE", 0);
-    this.setGap(0, 0, 402.336);
+    this.setGap(0, 0, this.game.finishDistance || 402.336);
     this.setPhase("PREPARE-SE");
     this.toast("");
   }
@@ -286,8 +297,8 @@ export class UI {
     this.el.rpm.style.width = `${Math.min(112, rpmNorm * 100)}%`;
   }
 
-  setDist(d) {
-    this.el.dist.textContent = Math.max(0, Math.round(402.336 - d));
+  setDist(d, finish = this.game.finishDistance || 402.336) {
+    this.el.dist.textContent = Math.max(0, Math.round(finish - d));
   }
 
   setGap(playerDist, rivalDist, finish) {
@@ -295,6 +306,37 @@ export class UI {
     const r = Math.max(0, Math.min(1, rivalDist / finish));
     this.el.gapYou.style.left = `${p * 92}%`;
     this.el.gapRival.style.left = `${r * 92}%`;
+  }
+
+  setRaceLine(state) {
+    if (!this.el.raceLine) return;
+    const advice = state.advice || "MANTÉM";
+    this.el.rlAdvice.textContent = advice;
+    this.el.rlAdvice.className = `rl-advice ${advice === "FREIA" ? "brake" : advice === "ACELERA" ? "accel" : "hold"}`;
+    this.el.rlSpeed.textContent = Math.round(state.speed || 0);
+    this.el.rlTarget.textContent = Math.round(state.target || 0);
+    if (state.cornerDist == null) {
+      this.el.rlCorner.textContent = "RETA · PODE ACELERAR";
+    } else if (state.cornerDist < 4) {
+      this.el.rlCorner.textContent = `CURVA ${state.cornerDir > 0 ? "▶" : "◀"} ${Math.round(state.cornerSpeed)} km/h`;
+    } else {
+      this.el.rlCorner.textContent = `${Math.round(state.cornerDist)} m ${state.cornerDir > 0 ? "▶" : "◀"} ${Math.round(state.cornerSpeed)} km/h`;
+    }
+    const strip = this.el.rlStrip;
+    if (!strip) return;
+    if (strip.children.length !== 30) {
+      strip.innerHTML = "";
+      for (let i = 0; i < 30; i++) strip.appendChild(document.createElement("i"));
+    }
+    const { profile, states, ds } = state.profile || {};
+    if (!states || !ds) return;
+    for (let i = 0; i < 30; i++) {
+      const d = state.sWorld + i * 10;
+      const idx = Math.max(0, Math.min(states.length - 1, Math.round(d / ds)));
+      const st = d > state.finishS ? -1 : states[idx];
+      const cls = st === 1 ? "brake" : st === 2 ? "accel" : st === 0 ? "hold" : "off";
+      strip.children[i].className = cls + (i === 0 ? " now" : "");
+    }
   }
 
   showLaunch(show) {

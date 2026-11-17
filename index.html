@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#07070c" />
-    <title>DRAG BRASIL — Arrancada 1/4 de Milha</title>
+    <title>DRAG BRASIL — Arrancada de Rua</title>
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2309090f'/%3E%3Cpath d='M6 22h20M9 22l3-8h8l3 8' stroke='%23ffd319' stroke-width='2.4' fill='none'/%3E%3Ccircle cx='11' cy='23.5' r='2.6' fill='%23ff5b1a'/%3E%3Ccircle cx='21' cy='23.5' r='2.6' fill='%23ff5b1a'/%3E%3C/svg%3E" />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
@@ -16,7 +16,7 @@
     <!-- ================= BOOT ================= -->
     <div id="boot" class="screen">
       <div class="boot-inner">
-        <div class="boot-kicker">ARRASTA · 1/4 DE MILHA</div>
+        <div class="boot-kicker">ARRANCADA DE RUA · CIRCUITO NOTURNO</div>
         <h1 class="logo">DRAG<span>BRASIL</span></h1>
         <div class="boot-strip"></div>
         <button id="btn-boot" class="btn btn-primary btn-big">LIGAR O MOTOR</button>
@@ -33,7 +33,7 @@
         </div>
         <div class="top-stats">
           <div class="stat-chip"><span class="stat-label">CAIXA</span><strong id="menu-money">R$ 0</strong></div>
-          <div class="stat-chip"><span class="stat-label">MELHOR ET</span><strong id="menu-best">—</strong></div>
+          <div class="stat-chip"><span class="stat-label">MELHOR TEMPO</span><strong id="menu-best">—</strong></div>
           <div class="stat-chip"><span class="stat-label">VITÓRIAS</span><strong id="menu-wins">0</strong></div>
           <button id="btn-sound" class="icon-btn" title="Som">🔊</button>
         </div>
@@ -43,7 +43,7 @@
         <div class="menu-copy">
           <div class="eyebrow">TEMPORADA 2026 · ETAPA NOTURNA</div>
           <h2 class="menu-title">APERTO O<br /><span class="stroke">ACELERADOR</span><br />E SEGURA.</h2>
-          <p class="menu-sub">Cockpit, câmbio manual, árvore de largada e 402 metros para provar quem manda no asfalto.</p>
+          <p class="menu-sub">Cockpit com piloto animado, câmbio manual e uma pista de rua longa: freie antes da curva, faça a linha e prove quem manda no asfalto.</p>
           <div class="menu-actions">
             <button id="btn-race" class="btn btn-primary btn-huge">CORRER<span class="btn-arrow">▸</span></button>
             <button id="btn-garage" class="btn btn-ghost">GARAGEM</button>
@@ -63,14 +63,14 @@
             <div class="card-top"><span>PRÓXIMO DESAFIO</span><span class="tag tag-hot">FILA</span></div>
             <h3 id="menu-rival">CARECA DO OPALA</h3>
             <p id="menu-rival-line">“Aqui é reta, parça. Ninguém segura esse V8.”</p>
-            <div class="rival-meta"><span id="menu-rival-time">ET alvo 12.10s</span><span class="dot"></span><span>PISTA: 402 m</span></div>
+            <div class="rival-meta"><span id="menu-rival-time">ALVO 12.10s</span><span class="dot"></span><span id="menu-track">PISTA DE RUA · CURVAS</span></div>
           </div>
         </div>
       </main>
 
       <footer class="menu-foot">
-        <span>W / ↑ acelera · S / ↓ ou ESPAÇO embreia · ← → volante · SHIFT sobe · CTRL desce · C câmera</span>
-        <span class="foot-right">MELHOR 1/4: <b id="menu-best-2">—</b> · <span id="menu-record">sem registro</span></span>
+        <span>W / ↑ acelera · S / ↓ freia · ESPAÇO embreia · ← → volante · SHIFT sobe · CTRL desce · C câmera</span>
+        <span class="foot-right">MELHOR TEMPO: <b id="menu-best-2">—</b> · <span id="menu-record">sem registro</span></span>
       </footer>
     </div>
 
@@ -108,29 +108,29 @@
           <div class="help-card">
             <div class="help-num">01</div>
             <h3>REVIRE O MOTOR</h3>
-            <p>Segure <b>EMBREAR + ACELERAR</b> antes da largada para encher o motor de giro. O carro fica travado na faixa até a luz verde.</p>
-            <div class="keyrow"><kbd>W</kbd><kbd>↑</kbd><span>gás</span><kbd>S</kbd><kbd>ESPAÇO</kbd><span>embreagem</span></div>
+            <p>Segure <b>ESPAÇO + ACELERAR</b> antes da largada para encher o motor de giro. O carro fica travado na faixa até a luz verde.</p>
+            <div class="keyrow"><kbd>W</kbd><kbd>↑</kbd><span>gás</span><kbd>ESPAÇO</kbd><span>embreagem</span><kbd>S</kbd><kbd>↓</kbd><span>freio</span></div>
           </div>
           <div class="help-card">
             <div class="help-num">02</div>
             <h3>SOLTE NO VERDE</h3>
-            <p>Solte a embreagem quando a luz verde acender. Se soltar antes, queima a largada. Solte tarde e o rival já foi. O giro alto demais faz o pneu cantar.</p>
+            <p>Solte o ESPAÇO quando a luz verde acender. Se soltar antes, queima a largada. Solte tarde e o rival já foi. O giro alto demais faz o pneu cantar.</p>
             <div class="tree-mini"><i></i><i></i><i></i><b></b></div>
           </div>
           <div class="help-card">
             <div class="help-num">03</div>
             <h3>TROQUE AS MARCHAS</h3>
-            <p>Puxe a marcha perto da zona vermelha para manter o motor na força. Cada troca solta um pipoco no escape.</p>
+            <p>Puxe a marcha perto da zona vermelha. O piloto tira a mão do volante, encaixa a alavanca e volta — e cada troca solta um pipoco no escape.</p>
             <div class="keyrow"><kbd>SHIFT</kbd><span>sobe</span><kbd>CTRL</kbd><span>desce</span></div>
           </div>
           <div class="help-card">
             <div class="help-num">04</div>
             <h3>GANHE E TUNE</h3>
-            <p>Vença para faturar a bolsa da etapa. Motor, pneus, peso e câmbio deixam o carro mais rápido. A fila de adversários não perdoa.</p>
+            <p>Reta de largada, curvas de raio curto e reta final. A linha no asfalto mostra onde <b>frear</b> (vermelho) e onde <b>acelerar</b> (verde). Entre na curva acima da conta e o carro lava para o muro.</p>
             <div class="keyrow"><kbd>C</kbd><span>alterna cockpit / perseguição</span></div>
           </div>
         </div>
-        <div class="help-tip">💡 No celular: volante à esquerda, pedais e marchas à direita. Segure dois dedos ao mesmo tempo — o jogo aceita multitoque.</div>
+        <div class="help-tip">💡 No celular: volante à esquerda, pedais e marchas à direita. Segure dois dedos ao mesmo tempo — o jogo aceita multitoque. O pedal vermelho serve de embreagem antes do verde e de freio depois.</div>
       </div>
     </div>
 
@@ -150,7 +150,7 @@
           <div class="tree-phase" id="hud-phase">PREPARE-SE</div>
         </div>
         <div class="hud-right">
-          <div class="hud-distance"><span id="hud-dist">402</span><small>METROS</small></div>
+          <div class="hud-distance"><span id="hud-dist">0</span><small>RESTAM</small></div>
           <button id="btn-prism" class="icon-btn hud-icon" title="Telas ao vivo (P)">📡</button>
           <button id="btn-cam" class="icon-btn hud-icon" title="Câmera">🎥</button>
         </div>
@@ -173,8 +173,24 @@
 
       <div id="hud-toast" class="hud-toast"></div>
 
+      <div id="race-line" class="race-line">
+        <div class="rl-head">
+          <span id="rl-advice" class="rl-advice hold">MANTÉM</span>
+          <span id="rl-corner" class="rl-corner">RETA FINAL</span>
+        </div>
+        <div class="rl-strip" id="rl-strip"></div>
+        <div class="rl-foot">
+          <span>AGORA <b id="rl-speed">0</b> km/h</span>
+          <span>ALVO <b id="rl-target">0</b> km/h</span>
+        </div>
+      </div>
+
       <div class="hud-bottom">
         <div class="steer-side">
+          <div class="wheel-gear" aria-label="Marcha atual">
+            <span class="wg-label">MARCHA</span>
+            <strong id="hud-gear" class="gear-num">1</strong>
+          </div>
           <div id="wheel-pad" class="wheel-pad">
             <div class="wheel-ring"></div>
             <div class="wheel-spoke s1"></div>
@@ -196,8 +212,6 @@
             <div class="rpm-red"></div>
           </div>
           <div class="gear-row">
-            <span class="gear-lbl">MARCHA</span>
-            <span id="hud-gear" class="gear-num">N</span>
             <span class="gear-hint" id="gear-hint">SEGURE O GÁS</span>
           </div>
         </div>
@@ -209,7 +223,7 @@
             <button id="btn-shift-up" class="shift-btn">▲</button>
           </div>
           <div class="pedal-row">
-            <button id="btn-brake" class="pedal brake">EMBREAR</button>
+            <button id="btn-brake" class="pedal brake">FREIO</button>
             <button id="btn-gas" class="pedal gas">ACELERAR</button>
           </div>
         </div>
@@ -225,7 +239,7 @@
         <h2 id="res-title">VITÓRIA</h2>
         <div class="res-sub" id="res-sub">Você passou o rival na reta.</div>
         <div class="res-times">
-          <div class="res-big"><span id="res-et">0.000</span><small>ET 1/4 MI</small></div>
+          <div class="res-big"><span id="res-et">0.000</span><small>TEMPO TOTAL</small></div>
           <div class="res-col"><span id="res-reaction">0.000s</span><small>REAÇÃO</small></div>
           <div class="res-col"><span id="res-speed">0</span><small>KM/H FINAL</small></div>
           <div class="res-col"><span id="res-rival-et">—</span><small>RIVAL</small></div>

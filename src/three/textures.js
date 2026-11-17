@@ -359,10 +359,10 @@ export function matTexture() {
   return canvasTex("floormat", 256, 128, (ctx, w, h) => {
     ctx.fillStyle = "#0a0a0d";
     ctx.fillRect(0, 0, w, h);
-    ctx.strokeStyle = "rgba(255,211,25,0.5)";
+    ctx.strokeStyle = "rgba(255,211,25,0.28)";
     ctx.lineWidth = 3;
     ctx.strokeRect(10, 10, w - 20, h - 20);
-    ctx.fillStyle = "rgba(255,211,25,0.75)";
+    ctx.fillStyle = "rgba(255,211,25,0.32)";
     ctx.font = "italic 900 40px Arial, Helvetica, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
