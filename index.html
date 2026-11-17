@@ -48,6 +48,7 @@
             <button id="btn-race" class="btn btn-primary btn-huge">CORRER<span class="btn-arrow">▸</span></button>
             <button id="btn-garage" class="btn btn-ghost">GARAGEM</button>
             <button id="btn-help" class="btn btn-ghost">CONTROLES</button>
+            <button id="btn-prism-menu" class="btn btn-ghost">TELAS AO VIVO</button>
           </div>
         </div>
 
@@ -150,6 +151,7 @@
         </div>
         <div class="hud-right">
           <div class="hud-distance"><span id="hud-dist">402</span><small>METROS</small></div>
+          <button id="btn-prism" class="icon-btn hud-icon" title="Telas ao vivo (P)">📡</button>
           <button id="btn-cam" class="icon-btn hud-icon" title="Câmera">🎥</button>
         </div>
       </div>
@@ -236,6 +238,58 @@
         </div>
         <div class="res-record hidden" id="res-record">🏆 NOVO RECORDE PESSOAL</div>
       </div>
+    </div>
+
+    <!-- ================= PRISM · captura ao vivo das telas ================= -->
+    <div id="prism" class="prism hidden">
+      <div class="prism-head">
+        <div>
+          <span class="prism-kicker">PRISM · TEXTURA AO VIVO</span>
+          <h3>TELAS DA CABINE</h3>
+        </div>
+        <button id="btn-prism-close" class="icon-btn prism-close" title="Fechar (P)">✕</button>
+      </div>
+      <p class="prism-hint">Transmita uma janela, aba ou tela para dentro do carro, ao vivo. O navegador pede a fonte na hora.</p>
+
+      <div class="prism-row">
+        <div class="prism-label"><b>Tela central</b><small>painel / multimídia</small></div>
+        <div class="prism-seg" data-target="dash">
+          <button data-src="telemetry" class="on">TELEMETRIA</button>
+          <button data-src="capture">CAPTURA</button>
+        </div>
+      </div>
+
+      <div class="prism-row">
+        <div class="prism-label"><b>Retrovisor</b><small>visor interno</small></div>
+        <div class="prism-seg" data-target="mirror">
+          <button data-src="camera" class="on">CÂMERA</button>
+          <button data-src="capture">CAPTURA</button>
+        </div>
+      </div>
+
+      <div class="prism-row">
+        <div class="prism-label"><b>Enquadramento</b><small>como a janela cabe na tela</small></div>
+        <div class="prism-seg" data-target="fit">
+          <button data-fit="contain" class="on">AJUSTAR</button>
+          <button data-fit="cover">PREENCHER</button>
+        </div>
+      </div>
+
+      <div class="prism-row">
+        <div class="prism-label"><b>Taxa</b><small>quadros por segundo</small></div>
+        <div class="prism-seg" data-target="fps">
+          <button data-fps="10">10</button>
+          <button data-fps="15" class="on">15</button>
+          <button data-fps="30">30</button>
+        </div>
+      </div>
+
+      <div class="prism-actions">
+        <button id="btn-prism-start" class="btn btn-primary">CAPTURAR JANELA</button>
+        <button id="btn-prism-stop" class="btn btn-line">PARAR</button>
+      </div>
+      <div class="prism-status" id="prism-status"><i></i><span>Nenhuma captura ativa</span></div>
+      <div class="prism-foot">Atalho <kbd>P</kbd> · a fonte é escolhida pelo navegador, como no Prism do ETS2</div>
     </div>
 
     <div id="ui-toast" class="ui-toast"></div>

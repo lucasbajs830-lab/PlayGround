@@ -62,6 +62,9 @@ export class UI {
       shiftUp: $("btn-shift-up"),
       shiftDown: $("btn-shift-down"),
       sound: $("btn-sound"),
+      prism: $("prism"),
+      prismStatus: $("prism-status"),
+      prismStart: $("btn-prism-start"),
     };
     this.toastTimer = 0;
     this._bindStatic();
@@ -79,9 +82,83 @@ export class UI {
     $("btn-res-menu").addEventListener("click", () => g.openMenu());
     $("btn-cam").addEventListener("click", () => g.toggleCamera());
     this.el.sound.addEventListener("click", () => g.toggleSound());
+
+    // Prism: captura de janela ao vivo nas telas da cabine
+    $("btn-prism").addEventListener("click", () => g.togglePrism(true));
+    $("btn-prism-menu").addEventListener("click", () => g.togglePrism(true));
+    $("btn-prism-close").addEventListener("click", () => g.togglePrism(false));
+    $("btn-prism-start").addEventListener("click", () => g.startPrismCapture());
+    $("btn-prism-stop").addEventListener("click", () => g.stopPrismCapture());
+    for (const seg of document.querySelectorAll(".prism-seg[data-target]")) {
+      const target = seg.dataset.target;
+      for (const btn of seg.querySelectorAll("button")) {
+        btn.addEventListener("click", () => {
+          if (target === "fps") g.setPrismFps(Number(btn.dataset.fps));
+          else if (target === "fit") g.setPrismFit(btn.dataset.fit);
+          else g.setPrismSource(target, btn.dataset.src);
+        });
+      }
+    }
+    this.setPrismStamp();
     for (const btn of document.querySelectorAll("[data-close]")) {
       btn.addEventListener("click", () => g.closePanel(btn.dataset.close));
     }
+  }
+
+  // ---------- Prism ----------
+  togglePrism(show) {
+    const panel = this.el.prism;
+    if (!panel) return;
+    const next = show == null ? panel.classList.contains("hidden") : show;
+    panel.classList.toggle("hidden", !next);
+    if (next) this.syncPrism(this.game.prism);
+  }
+
+  syncPrism(prism) {
+    const panel = this.el.prism;
+    if (!panel || !prism) return;
+    for (const target of ["dash", "mirror"]) {
+      for (const btn of panel.querySelectorAll(`.prism-seg[data-target="${target}"] button`)) {
+        btn.classList.toggle("on", btn.dataset.src === prism[target]);
+      }
+    }
+    this.setPrismFps(prism.fps);
+    for (const btn of panel.querySelectorAll('.prism-seg[data-target="fit"] button')) {
+      btn.classList.toggle("on", btn.dataset.fit === prism.fit);
+    }
+  }
+
+  setPrismFps(fps) {
+    const panel = this.el.prism;
+    if (!panel) return;
+    for (const btn of panel.querySelectorAll('.prism-seg[data-target="fps"] button')) {
+      btn.classList.toggle("on", Number(btn.dataset.fps) === Number(fps));
+    }
+  }
+
+  setPrismStatus(text, live = false) {
+    const box = this.el.prismStatus;
+    if (!box) return;
+    const label = box.querySelector("span") || box;
+    label.textContent = text;
+    box.classList.toggle("live", !!live);
+  }
+
+  setPrismActive(active) {
+    const btn = this.el.prismStart;
+    if (!btn) return;
+    btn.textContent = active ? "TROCAR FONTE" : "CAPTURAR JANELA";
+    this.el.prism?.classList.toggle("streaming", !!active);
+  }
+
+  setPrismStamp() {
+    if ("getDisplayMedia" in (navigator.mediaDevices || {})) return;
+    const btn = this.el.prismStart;
+    if (btn) {
+      btn.disabled = true;
+      btn.textContent = "SEM SUPORTE";
+    }
+    this.setPrismStatus("Este navegador não captura janelas");
   }
 
   show(name) {

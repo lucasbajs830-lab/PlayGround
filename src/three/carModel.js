@@ -404,10 +404,10 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     centerPanel.position.set(0, 1.075, 0.4);
     centerPanel.rotation.set(0.34, 0, 0);
     const screenHood = mesh(new RoundedBoxGeometry(0.4, 0.03, 0.11, 2, 0.012), suede, body, false);
-    screenHood.position.set(0, 1.148, 0.373);
+    screenHood.position.set(0, 1.152, 0.373);
     screenHood.rotation.x = 0.34;
     dashScreen = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.31, 0.113),
+      new THREE.PlaneGeometry(0.34, 0.124),
       new THREE.MeshBasicMaterial({ map: dashScreenTexture(), color: 0xb4c0c9 })
     );
     dashScreen.position.set(0, 1.081, 0.352);

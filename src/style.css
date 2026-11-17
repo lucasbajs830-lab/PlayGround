@@ -625,3 +625,55 @@ kbd { display: inline-block; padding: 3px 7px; border: 1px solid rgba(255,255,25
   .menu-sub { display: none; }
   .menu-side { display: none; }
 }
+
+/* ================= PRISM · captura ao vivo ================= */
+.prism {
+  position: fixed; z-index: 45;
+  right: 24px; bottom: 24px;
+  width: 372px; max-width: calc(100vw - 32px);
+  padding: 18px 20px 16px;
+  background: linear-gradient(180deg, rgba(9, 15, 21, 0.975), rgba(4, 7, 11, 0.99));
+  border: 1px solid rgba(55, 230, 255, 0.22);
+  border-top: 2px solid var(--cyan);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.75), 0 0 60px rgba(55, 230, 255, 0.06) inset;
+  backdrop-filter: blur(14px);
+  animation: prismIn 0.2s ease-out;
+}
+@keyframes prismIn { from { transform: translateY(10px); opacity: 0; } to { transform: none; opacity: 1; } }
+.prism-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.prism-kicker { font-size: 8px; letter-spacing: 0.3em; color: var(--cyan); font-weight: 800; }
+.prism-head h3 { font-family: var(--display); font-style: italic; font-size: 22px; letter-spacing: 0.01em; margin-top: 4px; color: #eaf6ff; }
+.prism-close { width: 30px; height: 30px; font-size: 13px; flex: none; }
+.prism-hint { font-size: 11px; line-height: 1.55; color: #9fb0bd; margin: 10px 0 14px; }
+.prism-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 0; border-top: 1px solid rgba(255, 255, 255, 0.06); }
+.prism-label { display: flex; flex-direction: column; gap: 2px; }
+.prism-label b { font-size: 11px; letter-spacing: 0.04em; color: #e6f2fa; font-weight: 700; }
+.prism-label small { font-size: 9px; color: #74828d; letter-spacing: 0.06em; }
+.prism-seg { display: flex; border: 1px solid rgba(255, 255, 255, 0.13); border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.03); }
+.prism-seg button {
+  border: 0; background: transparent; color: #8d9aa5;
+  font-family: var(--body); font-size: 9px; font-weight: 800; letter-spacing: 0.08em;
+  padding: 7px 9px; cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.prism-seg button + button { border-left: 1px solid rgba(255, 255, 255, 0.09); }
+.prism-seg button:hover { color: #dff6ff; background: rgba(55, 230, 255, 0.08); }
+.prism-seg button.on { color: #04121a; background: var(--cyan); }
+.prism-seg button:disabled { opacity: 0.35; cursor: not-allowed; }
+.prism-actions { display: flex; gap: 8px; margin-top: 14px; }
+.prism-actions .btn { flex: 1; padding: 11px 10px; font-size: 11px; letter-spacing: 0.06em; }
+.prism-actions .btn-line { flex: 0 0 88px; }
+.prism-status { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 10px; color: #93a3ae; letter-spacing: 0.04em; }
+.prism-status i { width: 7px; height: 7px; border-radius: 50%; background: #46525c; flex: none; }
+.prism-status.live { color: #bff6ff; }
+.prism-status.live i { background: var(--cyan); box-shadow: 0 0 10px var(--cyan); animation: prismPulse 1.1s infinite alternate; }
+@keyframes prismPulse { from { opacity: 0.45; } to { opacity: 1; } }
+.prism-foot { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.06); font-size: 9px; color: #6c7a84; letter-spacing: 0.03em; line-height: 1.6; }
+.prism-foot kbd { font-size: 8px; padding: 2px 5px; }
+
+@media (max-width: 720px) {
+  .prism { left: 12px; right: 12px; bottom: 12px; width: auto; padding: 14px 16px 12px; }
+  .prism-head h3 { font-size: 18px; }
+  .prism-seg button { padding: 6px 7px; }
+  .prism-hint { margin: 8px 0 10px; }
+  .prism-foot { display: none; }
+}

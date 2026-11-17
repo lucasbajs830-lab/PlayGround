@@ -231,3 +231,188 @@ export class MirrorFeed {
     playerGroup.visible = prevVisible;
   }
 }
+
+/**
+ * Captura de janela/aba/tela ao vivo — o equivalente no navegador ao que o
+ * PrismTextureStreamer faz no ETS2 com o hook de DirectX: pega uma fonte
+ * externa e usa como textura das telas da cabine.
+ *
+ * Usa getDisplayMedia (escolha da janela pelo próprio navegador) e faz o blit
+ * dos quadros em dois canvases, um por tela, como o Prism faz no Prism3D.
+ * "contain" mostra a janela inteira com tarjas; "cover" preenche a tela e corta
+ * as bordas. A taxa é limitada pelo fps escolhido no painel.
+ */
+export class WindowFeed {
+  constructor() {
+    this.stream = null;
+    this.active = false;
+    this.fps = 15;
+    this.fit = "contain";
+    this.onchange = null;
+    this.onmeta = null;
+    this._last = 0;
+    this._ended = this._ended.bind(this);
+
+    this.video = document.createElement("video");
+    this.video.muted = true;
+    this.video.playsInline = true;
+    this.video.autoplay = true;
+    this.video.setAttribute("playsinline", "");
+    this.video.addEventListener("loadedmetadata", () => this._onMeta());
+    this.video.addEventListener("resize", () => this._onMeta());
+
+    this.dashCanvas = this._canvas(512, 186);
+    this.mirrorCanvas = this._canvas(512, 114);
+    this.dashTexture = this._texture(this.dashCanvas);
+    this.mirrorTexture = this._texture(this.mirrorCanvas);
+
+    this.dashMaterial = new THREE.MeshBasicMaterial({ map: this.dashTexture, toneMapped: false });
+    this.mirrorMaterial = new THREE.MeshBasicMaterial({ map: this.mirrorTexture, toneMapped: false });
+    // a cabine é escura: dá um ganho para a tela continuar legível
+    this.dashMaterial.color.setScalar(1.25);
+    this.mirrorMaterial.color.setScalar(1.25);
+  }
+
+  _canvas(w, h) {
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#04121a";
+    ctx.fillRect(0, 0, w, h);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    return canvas;
+  }
+
+  _texture(canvas) {
+    const tex = new THREE.CanvasTexture(canvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.minFilter = THREE.LinearFilter;
+    tex.magFilter = THREE.LinearFilter;
+    tex.generateMipmaps = false;
+    return tex;
+  }
+
+  get videoSize() {
+    return { width: this.video.videoWidth || 0, height: this.video.videoHeight || 0 };
+  }
+
+  _onMeta() {
+    this.onmeta?.(this.videoSize);
+    this._last = 0;
+  }
+
+  /** Abre o seletor de janela do navegador. */
+  async start({ fps = 15, fit = "contain" } = {}) {
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      const err = new Error("captura de tela não suportada neste navegador");
+      err.code = "unsupported";
+      throw err;
+    }
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: {
+        frameRate: { ideal: fps, max: fps },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+      },
+      audio: false,
+    });
+    this.attach(stream);
+    this.setFps(fps);
+    this.fit = fit;
+    return stream;
+  }
+
+  /** Liga uma fonte já existente (getDisplayMedia, canvas.captureStream...). */
+  attach(stream) {
+    this.detach();
+    if (!stream) return;
+    this.stream = stream;
+    this.video.srcObject = stream;
+    this.video.play().catch(() => { /* autoplay bloqueado: fica no último quadro */ });
+    this.active = true;
+    for (const track of stream.getVideoTracks()) track.addEventListener("ended", this._ended);
+    this._last = 0;
+    this.onchange?.("start");
+  }
+
+  _ended() {
+    if (!this.active) return;
+    this.stop("ended");
+  }
+
+  setFps(fps) {
+    this.fps = Math.max(1, Math.min(60, Number(fps) || 15));
+    for (const track of this.stream?.getVideoTracks() || []) {
+      track.applyConstraints({ frameRate: { ideal: this.fps, max: this.fps } }).catch(() => { /* fonte fixa */ });
+    }
+  }
+
+  setFit(fit) {
+    this.fit = fit === "cover" ? "cover" : "contain";
+  }
+
+  /** Desenha o quadro atual nas texturas das duas telas (limitado pelo fps). */
+  update(now = performance.now()) {
+    if (!this.active || this.video.readyState < 2) return;
+    const step = 1000 / this.fps;
+    if (now - this._last < step) return;
+    this._last = now;
+    if (this._blit(this.dashCanvas)) this.dashTexture.needsUpdate = true;
+    if (this._blit(this.mirrorCanvas)) this.mirrorTexture.needsUpdate = true;
+  }
+
+  _blit(canvas) {
+    const vw = this.video.videoWidth;
+    const vh = this.video.videoHeight;
+    if (!vw || !vh) return false;
+    const ctx = canvas.getContext("2d");
+    const cw = canvas.width;
+    const ch = canvas.height;
+
+    // escala sem distorcer: "contain" mostra tudo, "cover" preenche e corta
+    const cover = this.fit === "cover";
+    const scale = cover ? Math.max(cw / vw, ch / vh) : Math.min(cw / vw, ch / vh);
+    const dw = vw * scale;
+    const dh = vh * scale;
+    const dx = (cw - dw) / 2;
+    const dy = (ch - dh) / 2;
+
+    ctx.fillStyle = "#030b11";
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.save();
+    try {
+      ctx.drawImage(this.video, dx, dy, dw, dh);
+    } catch {
+      ctx.restore();
+      return false;
+    }
+    // brilho de vidro no topo, como nas telas do jogo
+    const glow = ctx.createLinearGradient(0, 0, 0, ch);
+    glow.addColorStop(0, "rgba(190,235,255,0.10)");
+    glow.addColorStop(0.45, "rgba(190,235,255,0.02)");
+    glow.addColorStop(1, "rgba(0,0,0,0.18)");
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, cw, ch);
+    ctx.restore();
+    return true;
+  }
+
+  stop(reason = "stop") {
+    this.detach();
+    this.onchange?.(reason);
+  }
+
+  detach() {
+    if (this.stream) {
+      for (const track of this.stream.getTracks()) {
+        track.removeEventListener("ended", this._ended);
+        track.stop();
+      }
+    }
+    this.stream = null;
+    this.video.srcObject = null;
+    this.active = false;
+  }
+}

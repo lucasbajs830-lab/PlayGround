@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
 import { createCarModel } from "./three/carModel.js";
-import { TelemetryScreen, MirrorFeed } from "./three/liveScreens.js";
+import { TelemetryScreen, MirrorFeed, WindowFeed } from "./three/liveScreens.js";
 import { buildTrack } from "./three/track.js";
 import { Effects } from "./three/effects.js";
 import { DragSim, clamp, QUARTER_MILE } from "./physics.js";
@@ -61,6 +61,8 @@ export class Game {
     this.launchPromptVisible = false;
     this.autoShift = true;
     this.ui = null;
+    // Prism: para onde vai cada tela da cabine
+    this.prism = { dash: "telemetry", mirror: "camera", fps: 15, fit: "contain" };
 
     this.initGraphics();
     this.initTrack();
@@ -179,8 +181,7 @@ export class Game {
     this.playerModel = createCarModel({ paint, interior: true });
     if (!this.telemetry) this.telemetry = new TelemetryScreen();
     if (!this.mirrorFeed) this.mirrorFeed = new MirrorFeed(this.renderer, this.scene);
-    if (this.playerModel.dashScreen) this.playerModel.dashScreen.material = this.telemetry.material;
-    if (this.playerModel.mirrorGlass) this.playerModel.mirrorGlass.material = this.mirrorFeed.material;
+    this.applyCabinScreens();
     this.screenClock = 0;
     this.mirrorAcc = 0;
     this.playerGroup.add(this.playerModel.root);
@@ -280,6 +281,7 @@ export class Game {
       this.keys[e.code] = true;
       if (e.repeat) return;
       if (e.code === "KeyC") this.toggleCamera();
+      if (e.code === "KeyP") this.togglePrism();
       if (e.code === "ShiftLeft" || e.code === "ShiftRight" || e.code === "KeyE") this.tryShift(1);
       if (e.code === "ControlLeft" || e.code === "ControlRight" || e.code === "KeyQ") this.tryShift(-1);
       if (e.code === "Escape") {
@@ -841,13 +843,134 @@ export class Game {
     this.ui.showFoul(false);
   }
 
+  // ---------- Prism: captura ao vivo nas telas ----------
+  ensureWindowFeed() {
+    if (this.windowFeed) return this.windowFeed;
+    const feed = new WindowFeed();
+    feed.onchange = (reason) => {
+      if (reason === "ended") {
+        // o usuário parou o compartilhamento pelo navegador
+        this.prism.dash = "telemetry";
+        this.prism.mirror = "camera";
+        this.applyCabinScreens();
+        this.ui?.syncPrism(this.prism);
+        this.ui?.setPrismActive(false);
+        this.ui?.setPrismStatus("Compartilhamento encerrado");
+        this.uiToast("PRISM desconectado");
+      }
+    };
+    feed.onmeta = ({ width, height }) => {
+      if (feed.active && width && height) this.ui?.setPrismStatus(`${width}×${height} · ao vivo`, true);
+    };
+    this.windowFeed = feed;
+    return feed;
+  }
+
+  applyCabinScreens() {
+    const model = this.playerModel;
+    if (!model) return;
+    const feed = this.windowFeed;
+    const live = !!feed?.active;
+    if (model.dashScreen) {
+      model.dashScreen.material = live && this.prism.dash === "capture" ? feed.dashMaterial : this.telemetry.material;
+    }
+    if (model.mirrorGlass) {
+      model.mirrorGlass.material = live && this.prism.mirror === "capture" ? feed.mirrorMaterial : this.mirrorFeed.material;
+    }
+  }
+
+  setPrismSource(target, source) {
+    if (target !== "dash" && target !== "mirror") return;
+    this.prism[target] = source;
+    if (source === "capture" && !this.windowFeed?.active) {
+      // ainda não há fonte: abre o seletor e já liga essa tela
+      this.startPrismCapture();
+      return;
+    }
+    this.applyCabinScreens();
+    this.ui?.syncPrism(this.prism);
+  }
+
+  setPrismFps(fps) {
+    this.prism.fps = fps;
+    this.windowFeed?.setFps(fps);
+    this.ui?.syncPrism(this.prism);
+  }
+
+  setPrismFit(fit) {
+    this.prism.fit = fit;
+    this.windowFeed?.setFit(fit);
+    this.ui?.syncPrism(this.prism);
+  }
+
+  async startPrismCapture() {
+    if (this.prismPending) return;
+    this.prismPending = true;
+    const request = (this.prismToken = (this.prismToken || 0) + 1);
+    const feed = this.ensureWindowFeed();
+    this.ui?.setPrismStatus("Escolha uma janela, aba ou tela…");
+    try {
+      await feed.start({ fps: this.prism.fps, fit: this.prism.fit });
+    } catch (err) {
+      this.prismPending = false;
+      const msg = err?.code === "unsupported"
+        ? "Este navegador não captura janelas"
+        : err?.name === "NotAllowedError"
+          ? "Captura cancelada"
+          : "Falha ao abrir a captura";
+      if (this.prism.dash === "capture") this.prism.dash = "telemetry";
+      if (this.prism.mirror === "capture") this.prism.mirror = "camera";
+      this.applyCabinScreens();
+      this.ui?.syncPrism(this.prism);
+      this.ui?.setPrismStatus(msg);
+      this.ui?.setPrismActive(false);
+      this.uiToast(msg);
+      return;
+    }
+    this.prismPending = false;
+    if (request !== this.prismToken) {
+      // o usuário desistiu enquanto o seletor estava aberto
+      feed.stop();
+      return;
+    }
+    if (this.prism.dash !== "capture" && this.prism.mirror !== "capture") this.prism.dash = "capture";
+    this.applyCabinScreens();
+    this.ui?.syncPrism(this.prism);
+    this.ui?.setPrismActive(true);
+    this.ui?.setPrismStatus("Captura ao vivo · tela central", true);
+    this.uiToast("PRISM CONECTADO");
+  }
+
+  stopPrismCapture() {
+    this.prismToken = (this.prismToken || 0) + 1;
+    this.windowFeed?.stop();
+    this.prism.dash = "telemetry";
+    this.prism.mirror = "camera";
+    this.applyCabinScreens();
+    this.ui?.syncPrism(this.prism);
+    this.ui?.setPrismActive(false);
+    this.ui?.setPrismStatus("Nenhuma captura ativa");
+  }
+
+  togglePrism(show) {
+    if (this.mode === "boot") return;
+    if (!document.getElementById("boot")?.classList.contains("hidden")) return;
+    this.ui?.togglePrism(show);
+    this.audio.ui();
+  }
+
   // ---------- telas vivas (feed de textura) ----------
   updateLiveScreens(rdt) {
     const sim = this.playerSim;
     if (!sim || !this.telemetry) return;
 
+    if (this.windowFeed?.active) this.windowFeed.update();
+
+    const dashLive = this.prism.dash === "capture" && this.windowFeed?.active;
+    const mirrorLive = this.prism.mirror === "capture" && this.windowFeed?.active;
+
     const interval = this.mode === "race" ? 1 / 12 : 1 / 6;
-    if (this.time - (this.screenClock || 0) >= interval) {
+    if (!dashLive && this.time - (this.screenClock || 0) >= interval) {
       this.screenClock = this.time;
       const rsim = this.rivalSim;
       this.telemetry.draw({
@@ -866,7 +989,7 @@ export class Game {
       });
     }
 
-    if (this.mirrorFeed) {
+    if (this.mirrorFeed && !mirrorLive) {
       const cockpit = this.mode === "race" && this.cameraMode === "cockpit";
       this.mirrorAcc = (this.mirrorAcc || 0) + rdt;
       if (this.mirrorAcc >= (cockpit ? 1 / 15 : 1 / 6)) {
@@ -1030,8 +1153,9 @@ export class Game {
     };
     this.audio.update(audioState);
 
-    this.renderer.render(this.scene, this.camera);
+    // atualiza as texturas das telas antes do render principal (sem 1 frame de atraso)
     this.updateLiveScreens(rdt);
+    this.renderer.render(this.scene, this.camera);
 
     // perf simples
     this.frameTimes.push(rdt);
