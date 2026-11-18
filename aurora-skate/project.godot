@@ -1,0 +1,39 @@
+; Engine configuration file.
+; Projeto original: Aurora Skate Park (Godot 4.x, renderer Mobile)
+
+config_version=5
+
+[application]
+
+config/name="Aurora Skate Park"
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.3", "Mobile")
+
+[autoload]
+
+InputHub="*res://scripts/input_hub.gd"
+Game="*res://scripts/game.gd"
+Settings="*res://scripts/settings.gd"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=4
+
+[input_devices]
+
+pointing/emulate_mouse_from_touch=false
+pointing/emulate_touch_from_mouse=true
+
+[physics]
+
+common/physics_ticks_per_second=60
+
+[rendering]
+
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+textures/vram_compression/import_etc2_astc=true

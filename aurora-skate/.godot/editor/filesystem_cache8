@@ -1,0 +1,16 @@
+fc8a56933c4b1c8d796fdb8f7a9f9475
+::res://::1794979280
+export_presets.cfg::TextFile::-1::1794979277::0::1::::<><>::
+icon.svg::CompressedTexture2D::6638862857865855791::1794979277::1794979285::1::::<><>::
+README.md::TextFile::-1::1794979277::0::1::::<><>::
+::res://scenes/::1794978700
+main.tscn::PackedScene::-1::1794978700::0::1::::<><>::res://scripts/main.gd
+::res://scripts/::1794979252
+game.gd::GDScript::-1::1794978723::0::1::::<>Node<>::
+gap.gd::GDScript::-1::1794979156::0::1::::<>Area3D<>::
+hud.gd::GDScript::-1::1794979193::0::1::::<>CanvasLayer<>::
+input_hub.gd::GDScript::-1::1794978723::0::1::::<>Node<>::
+main.gd::GDScript::-1::1794979252::0::1::::<>Node3D<>::
+park_builder.gd::GDScript::-1::1794979146::0::1::::<>Node3D<>::
+player.gd::GDScript::-1::1794979156::0::1::::<>CharacterBody3D<>::
+settings.gd::GDScript::-1::1794978723::0::1::::<>Node<>::
