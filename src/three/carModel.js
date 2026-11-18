@@ -482,10 +482,19 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
     screenHood.rotation.x = 0.34;
     dashScreen = new THREE.Mesh(
       new THREE.PlaneGeometry(0.34, 0.124),
-      new THREE.MeshBasicMaterial({ map: dashScreenTexture(), color: 0xb4c0c9 })
+      new THREE.MeshBasicMaterial({
+        map: dashScreenTexture(),
+        color: 0xb4c0c9,
+        side: THREE.DoubleSide,
+        depthWrite: true,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2,
+      })
     );
-    dashScreen.position.set(0, 1.081, 0.352);
+    dashScreen.position.set(0, 1.081, 0.342);
     dashScreen.rotation.set(0.34, Math.PI, 0);
+    dashScreen.renderOrder = 5;
     body.add(dashScreen);
     const screenGlow = new THREE.Mesh(
       new THREE.PlaneGeometry(0.26, 0.012),
@@ -517,9 +526,18 @@ export function createCarModel({ paint = "#ff5a12", interior = false, plate = "D
       cluster.add(ring);
       const dial = new THREE.Mesh(
         new THREE.CircleGeometry(0.068, 28),
-        new THREE.MeshBasicMaterial({ map: gaugeTexture(i === 0 ? "tach" : "speed"), transparent: true })
+        new THREE.MeshBasicMaterial({
+          map: gaugeTexture(i === 0 ? "tach" : "speed"),
+          side: THREE.DoubleSide,
+          transparent: false,
+          depthWrite: true,
+          polygonOffset: true,
+          polygonOffsetFactor: -3,
+          polygonOffsetUnits: -3,
+        })
       );
-      dial.position.set(x, 0, 0.017);
+      dial.position.set(x, 0, 0.026);
+      dial.renderOrder = 6;
       cluster.add(dial);
       const needle = new THREE.Mesh(
         new THREE.BoxGeometry(0.006, 0.055, 0.004),

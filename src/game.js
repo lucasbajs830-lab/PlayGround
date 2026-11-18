@@ -423,7 +423,9 @@ export class Game {
     const accel = sim.accel;
     const crash = this.crashShake || 0;
     const shake = Math.min(0.035, sim.speed * 0.00007 + sim.wheelspin * 0.01 + crash * 0.03);
-    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.235, -0.30));
+    // O olho fica à frente da cabeça virtual e ainda atrás do painel/volante.
+    // Isso evita que a lente fique colada ou atravessada por superfícies internas.
+    const base = this.playerGroup.localToWorld(new THREE.Vector3(-0.37, 1.235, -0.38));
     base.x += Math.sin(t * 53) * shake;
     base.y += Math.sin(t * 61 + 1.3) * shake * 0.7;
     base.z += Math.cos(t * 47) * shake * 0.5;
