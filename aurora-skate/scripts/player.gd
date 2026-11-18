@@ -234,7 +234,7 @@ func _build_visuals() -> void:
 		arm.mesh = am
 		arm.material_override = mat_skin
 		arm.position = Vector3(side * 0.2, 0.88, -0.02)
-		arm.rotation = Vector3(0, 0, side * -0.9)
+		arm.rotation = Vector3(0, 0, side * -0.5)
 		skater.add_child(arm)
 
 
@@ -275,7 +275,7 @@ func _physics_process(delta: float) -> void:
 		S.MANUAL:
 			_manual(delta)
 		S.BAIL:
-			_bail(delta)
+			_bail_tick(delta)
 	if InputHub.just("respawn") and state != S.BAIL:
 		_teleport_safe()
 	_update_rig(delta)
@@ -326,17 +326,51 @@ func _ground(delta: float) -> void:
 
 	move_and_slide()
 	for i in get_slide_collision_count():
-		var n := get_slide_collision(i).get_normal()
-		if n.y < 0.12 and speed_before > 9.0:  # parede quase vertical em alta velocidade
-			_bail("parede n=%s vel=%s" % [n, velocity])
-			return
+		var col := get_slide_collision(i)
+		var n := col.get_normal()
+		# n.y muito baixo = parede vertical; n.y negativo = teto/underside.
+		if n.y > 0.3 or n.y < -0.1:
+			continue
+		if speed_before <= 9.0:
+			continue
+		if _is_low_obstacle(col.get_collider()):
+			continue  # meio-fio, ledge baixo: só trava, não derruba
+		_bail("parede n=%s vel=%s" % [n, velocity])
+		return
 
 	if is_on_floor():
+		# converte o movimento horizontal em velocidade ao longo da rampa:
+		# é isso que faz o skatista ser lançado pelo lip.
+		var fn := get_floor_normal()
+		if fn.y > 0.2:
+			velocity.y = -(velocity.x * fn.x + velocity.z * fn.z) / fn.y
+			# teto de lançamento: bowls/QPs não viram trampolim
+			velocity.y = minf(velocity.y, 7.0)
 		_mark_safe(delta)
+		return
+
+	# saiu do chão (lip de rampa, ledge, borda de bowl): passa para o ar
+	state = S.AIR
+	air_time = 0.0
+	spin_accum = 0.0
+	trick_name = ""
+	charge = -1.0
 
 
 func _steer_rate(speed: float) -> float:
 	return lerpf(2.8, 1.2, clampf(speed / MAX_SPEED, 0.0, 1.0))
+
+
+## Obstáculos baixos (ledge, meio-fio, banco) não devem derrubar o skatista.
+func _is_low_obstacle(obj: Object) -> bool:
+	if not (obj is StaticBody3D):
+		return false
+	for c in obj.get_children():
+		if c is CollisionShape3D:
+			var sh: Shape3D = (c as CollisionShape3D).shape
+			if sh is BoxShape3D and (sh as BoxShape3D).size.y <= 1.2:
+				return true
+	return false
 
 
 func _on_transition() -> bool:
@@ -619,7 +653,7 @@ func _bail(reason: String) -> void:
 	rail = null
 
 
-func _bail(delta: float) -> void:
+func _bail_tick(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, 0.0, 6.0 * delta)
 	velocity.z = move_toward(velocity.z, 0.0, 6.0 * delta)
 	velocity.y -= GRAVITY * delta
@@ -663,6 +697,14 @@ func _update_camera(delta: float) -> void:
 	var speed := flat.length()
 	var dist := 5.0 + speed * 0.07
 	var desired := target - cam_last_fwd * dist + Vector3(0, 1.7, 0)
+	# dentro de bowl/piscina a câmera não pode afundar no chão
+	if global_position.y < -1.0:
+		desired.y = maxf(desired.y, 2.6)
+		desired -= cam_last_fwd * 2.0
+
+	# teto baixo do túnel: a câmera precisa passar por baixo dele
+	if absf(global_position.z + 150.0) < 8.0 and global_position.x > 96.0 and global_position.x < 144.0:
+		desired.y = minf(desired.y, 3.6)
 
 	# evita atravessar paredes
 	var space := get_world_3d().direct_space_state

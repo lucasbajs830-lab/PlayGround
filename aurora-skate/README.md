@@ -36,6 +36,19 @@ aurora-skate/
     ├── hud.gd             # placar, popups, barra de equilíbrio, controles de toque
     ├── settings.gd        # perfil Baixo/Médio/Alto (autoload)
     └── gap.gd             # zonas de gap
+
+dev/                       # apenas testes locais (excluídos do export)
+```
+
+## Verificação local
+
+Os testes em `dev/` rodam só no desktop e ficam **fora do APK/AAB**
+(`exclude_filter` do preset). Exemplos:
+
+```bash
+godot --headless --path aurora-skate dev/tour_test.tscn   # tour integrado
+godot --headless --path aurora-skate dev/tunnel_test.tscn # kicker + gap do túnel
+godot --headless --path aurora-skate dev/bowl_ride_test.tscn  # transição do bowl
 ```
 
 ## Perfis de qualidade (compatibilidade escalável)

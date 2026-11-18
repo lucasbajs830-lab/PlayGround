@@ -97,7 +97,7 @@ func _process(delta: float) -> void:
 			phase = 5
 		5:
 			InputHub.touch_stick(Vector2(0, -1))
-			if pos.x > 132.0 and pos.y > 0.6 and not flags.has("tunel"):
+			if pos.x > 114.0 and pos.y > 1.0 and not flags.has("tunel"):
 				flags["tunel"] = true
 				_shot("03_tunel")
 			if pos.x > 145.0 or p.state == 4:
@@ -120,21 +120,18 @@ func _process(delta: float) -> void:
 		9:
 			if t > 20.6:
 				phase = 10
-		10:  # rua: vai até o ledge e tenta grind
-			_teleport(p, Vector3(180, 0.8, -20), 0.0)
+		10:  # rua: já em cima do ledge, desliza e faz grind
+			_teleport(p, Vector3(194, 0.55, -42), -PI / 2.0)
 			phase = 11
 		11:
-			InputHub.touch_stick(_steer_towards(p, Vector3(200, 0, -42)))
-			if (p.global_position - Vector3(200, 0, -42)).length() < 8.0 and p.state == 0 and p.velocity.length() > 6.0:
-				_press("ollie", 0.2)
-				phase = 12
-			if t > 26.0:
-				phase = 14
-		12:
-			InputHub.touch_stick(Vector2.ZERO)
+			InputHub.touch_stick(Vector2(0, -1))
 			if p.state == 2 and not flags.has("ledge"):
 				flags["ledge"] = true
 				_shot("05_ledge_grind")
+			if p.state == 2 or t > 26.0:
+				phase = 12
+		12:
+			InputHub.release_all()
 			if t > 29.0:
 				phase = 13
 		13:

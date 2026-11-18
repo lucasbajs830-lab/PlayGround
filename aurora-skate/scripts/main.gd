@@ -29,11 +29,13 @@ func _ready() -> void:
 
 	player = load("res://scripts/player.gd").new()
 	player.name = "Player"
-	player.position = Vector3(0, 0.6, 42)
+	player.position = Vector3(0, 0.6, 34)
 	player.facing = 0.0  # de frente para a fonte
+	player.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(player)
 
 	hud = load("res://scripts/hud.gd").new()
+	hud.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(hud)
 	hud.player = player
 	hud.pause_callback = _toggle_pause
@@ -42,6 +44,7 @@ func _ready() -> void:
 	Settings.profile_changed.connect(_apply_quality)
 
 	_build_menus()
+	hud.visible = false
 	get_tree().paused = true
 
 
@@ -58,16 +61,20 @@ func _build_environment() -> void:
 	env.sky = sky
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	env.ambient_light_sky_contribution = 1.0
-	env.ambient_light_energy = 0.8
+	env.ambient_light_energy = 0.65
 	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	env.tonemap_exposure = 1.0
+	env.adjustment_enabled = true
+	env.adjustment_contrast = 1.08
+	env.adjustment_saturation = 1.12
 	world_env = WorldEnvironment.new()
 	world_env.environment = env
 	add_child(world_env)
 
 	sun = DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-56.0, 205.0, 0.0)
-	sun.light_energy = 1.0
-	sun.light_color = Color(1.0, 0.96, 0.88)
+	sun.rotation_degrees = Vector3(-50.0, 205.0, 0.0)
+	sun.light_energy = 1.12
+	sun.light_color = Color(1.0, 0.95, 0.86)
 	add_child(sun)
 
 
@@ -78,8 +85,8 @@ func _apply_quality() -> void:
 		sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if q == 1 else DirectionalLight3D.SHADOW_PARALLEL_4_SPLITS
 		sun.directional_shadow_max_distance = 160.0 if q == 1 else 280.0
 	env.fog_enabled = q >= 1
-	env.fog_light_color = Color(0.72, 0.78, 0.85)
-	env.fog_density = 0.0008
+	env.fog_light_color = Color(0.7, 0.78, 0.88)
+	env.fog_density = 0.00035
 	env.fog_sky_affect = 0.0  # mantém o céu limpo; névoa só no cenário
 	env.glow_enabled = q >= 2
 	get_viewport().msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][q]
@@ -207,6 +214,7 @@ func _menu_button(vb: VBoxContainer, text: String, cb: Callable) -> Button:
 func _start_game() -> void:
 	started = true
 	start_panel.visible = false
+	hud.visible = true
 	get_tree().paused = false
 	Game.reset()
 

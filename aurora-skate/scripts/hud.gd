@@ -119,9 +119,9 @@ func _build_touch() -> void:
 	stick_knob.visible = false
 	touch_root.add_child(stick_knob)
 
-	_button("ollie", "SALTAR", Vector2(-110, -110), 130)
-	_button("trick", "MANOBRA", Vector2(-250, -70), 100)
-	_button("grind", "GRIND", Vector2(-95, -260), 96)
+	_button("ollie", "SALTAR", Vector2(-174, -198), 132)
+	_button("trick", "MANOBRA", Vector2(-304, -174), 96)
+	_button("grind", "GRIND", Vector2(-156, -306), 88)
 
 	# botão de pausa
 	pause_btn = _circle(Vector2(56, 56), Color(0, 0, 0, 0.45))
